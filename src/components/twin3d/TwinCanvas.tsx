@@ -13,7 +13,7 @@ export default function TwinCanvas() {
           <capsuleGeometry args={[0.35, 1.2, 8, 16]} />
           <meshStandardMaterial color="#22d3ee" wireframe />
         </mesh>
-        <OrbitControls target={[0, 1, 0]} />
+           <OrbitControls target={[0, 1, 0]} autoRotate autoRotateSpeed={2} />
       </Canvas>
     </div>
   );
