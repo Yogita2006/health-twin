@@ -5,7 +5,7 @@
 // the page opens, passes in new data whenever the twin state changes, and
 // cleans up when the page closes.
 import { useEffect, useRef, useState } from "react";
-import { createTwinScene, type TwinScene } from "./twinScene";
+import { MODEL_URL, createTwinScene, type TwinScene } from "./twinScene";
 import { Region, TwinState } from "@/lib/engine/types";
 
 interface Props {
@@ -31,7 +31,7 @@ export default function TwinBody({ state, selected, onSelect }: Props) {
     if (!holder.current) return;
     const created = createTwinScene({
       container: holder.current,
-      modelUrl: "/models/body.glb",
+      modelUrl: MODEL_URL,
       onSelect: (region) => latest.current.onSelect(region),
     });
     if (!created) {

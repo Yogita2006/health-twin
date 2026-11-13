@@ -1,12 +1,24 @@
-body.glb
---------
-The human body shape used by the 3D digital twin.
+anatomy.glb
+-----------
+The 3D shapes used by the digital twin: skin, skeleton, heart with its main
+vessels, lungs with the airway, and brain.
 
-Source:  the MakeHuman base mesh (file makehuman/data/3dobjs/base.obj)
-         https://github.com/makehumancommunity/makehuman
-Licence: CC0 1.0 Universal (public domain dedication), as stated in the
-         MakeHuman repository file LICENSE.ASSETS.md
+Source:  BodyParts3D, release 3.0, obtained through
+         https://github.com/Kevin-Mattheus-Moerman/BodyParts3D
 
-Changes made for this project: only the "body" part of the mesh was kept,
-it was scaled to 1.75 m tall with the feet on the floor, the arms were lowered
-to a relaxed pose, and it was saved in the glTF binary (.glb) format.
+Required credit (please keep this line in the project report as well):
+
+    BodyParts3D, (c) The Database Center for Life Science
+    licensed under CC Attribution-Share Alike 2.1 Japan
+
+Licence: https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en
+
+This file is a derivative of BodyParts3D and is shared under the same
+licence. The licence covers this model file only, not the rest of the
+project's code.
+
+Changes made for this project: the parts for each group were merged; only the
+outward-facing skin surface was kept; the lung artery was trimmed to the part
+beside the heart; every group was simplified to far fewer triangles and lightly
+smoothed; the model was turned to face the viewer, scaled to 1.75 m tall with
+the feet on the floor, and saved in the glTF binary (.glb) format.

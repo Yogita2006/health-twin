@@ -562,6 +562,16 @@
 }
 
 /* ---------- Region detail ---------- */
+.hud-organ {
+  height: 200px;
+  margin-top: 10px;
+  border: 1px solid var(--hud-line);
+  border-radius: 3px;
+  background:
+    radial-gradient(60% 60% at 50% 50%, rgba(54, 227, 214, 0.1), transparent 75%),
+    var(--hud-inset);
+  overflow: hidden;
+}
 .hud-chips {
   display: flex;
   flex-wrap: wrap;

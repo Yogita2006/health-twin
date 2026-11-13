@@ -1,7 +1,9 @@
 "use client";
 
-// Shows the stored data behind whichever body region is selected in the 3D twin.
+// Shows a 3D close-up of whichever body region is selected in the twin, and
+// the stored data behind it.
 import { StatusTag } from "@/components/hud/Hud";
+import OrganView from "@/components/twin3d/OrganView";
 import { REGION_METRICS } from "@/lib/engine/config";
 import { METRIC_INFO, Region, Status, TwinState } from "@/lib/engine/types";
 
@@ -33,6 +35,8 @@ export default function RegionPanel({ state, selected, onSelect }: { state: Twin
           </button>
         ))}
       </div>
+
+      <OrganView state={state} selected={selected} />
 
       <h3 className="hud-region-name">{REGION_LABEL[selected]}</h3>
       <StatusTag status={status} />
