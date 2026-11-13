@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
@@ -10,6 +10,8 @@ import { useAlerts, useTwinState } from "@/hooks/useTwin";
 import { useRecentReadings } from "@/hooks/useReadings";
 import Waveform from "@/components/panels/Waveform";
 import TrendChart from "@/components/panels/TrendChart";
+import TwinBody from "@/components/twin3d/TwinBody";
+import RegionPanel from "@/components/panels/RegionPanel";
 import { BASELINE_MIN_READINGS } from "@/lib/engine/config";
 import { METRICS, METRIC_INFO, Region, Status } from "@/lib/engine/types";
 
@@ -20,20 +22,13 @@ const STATUS_STYLE: Record<Status, { label: string; box: string; text: string }>
   no_data: { label: "No data", box: "border-slate-700 bg-slate-900/40", text: "text-slate-400" },
 };
 
-const REGION_LABEL: Record<Region, string> = {
-  heart: "Heart",
-  lungs: "Lungs",
-  body: "Whole body",
-  brain: "Brain",
-  skeleton: "Skeleton",
-};
-
 export default function DashboardPage() {
   const router = useRouter();
   const { user, role, loading } = useAuth();
   const { state, ready } = useTwinState(user ? user.uid : null);
   const alerts = useAlerts(user ? user.uid : null);
   const readings = useRecentReadings(user ? user.uid : null);
+  const [region, setRegion] = useState<Region>("heart");
 
   // Nobody reaches this page without signing in.
   useEffect(() => {
@@ -96,6 +91,18 @@ export default function DashboardPage() {
             </section>
 
             <section>
+              <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-400">Digital twin</h2>
+              <div className="grid gap-3 lg:grid-cols-5">
+                <div className="rounded-xl border border-cyan-500/20 bg-slate-900/60 lg:col-span-3">
+                  <TwinBody state={state} selected={region} onSelect={setRegion} />
+                </div>
+                <div className="lg:col-span-2">
+                  <RegionPanel state={state} selected={region} onSelect={setRegion} />
+                </div>
+              </div>
+            </section>
+
+            <section>
               <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-400">Live physiology</h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {METRICS.map((m) => {
@@ -124,19 +131,6 @@ export default function DashboardPage() {
               <TrendChart readings={readings} state={state} />
             </section>
 
-            <section>
-              <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-400">Body regions</h2>
-              <div className="flex flex-wrap gap-2">
-                {(Object.keys(REGION_LABEL) as Region[]).map((region) => {
-                  const style = STATUS_STYLE[state.regions[region]];
-                  return (
-                    <span key={region} className={`rounded-lg border px-4 py-2 text-sm ${style.box}`}>
-                      {REGION_LABEL[region]}: <span className={style.text}>{style.label}</span>
-                    </span>
-                  );
-                })}
-              </div>
-            </section>
           </>
         )}
 
