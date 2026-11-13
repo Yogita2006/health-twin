@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Healthcare Digital Twin: security rules, version 1 (accounts and patient records).
+// Healthcare Digital Twin: security rules, version 2 (adds readings, twin state, baseline, alerts).
 // Roles live in users/{uid}.role and are "patient", "doctor" or "admin".
 // These rules run on Google's servers and cannot be bypassed from the browser.
 
@@ -15,6 +15,14 @@ service cloud.firestore {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // The patient themselves, an assigned doctor, or an admin.
+    function canReadPatient(patientId) {
+      return signedIn()
+        && (request.auth.uid == patientId
+            || isAdmin()
+            || request.auth.uid in get(/databases/$(database)/documents/patients/$(patientId)).data.assignedDoctorIds);
     }
 
     // Account roles.
@@ -34,7 +42,6 @@ service cloud.firestore {
 
     // Patient records. The document ID is the patient's account UID.
     match /patients/{patientId} {
-      // The patient, an assigned doctor, or an admin may read.
       allow read: if signedIn()
         && (request.auth.uid == patientId
             || request.auth.uid in resource.data.assignedDoctorIds
@@ -49,6 +56,26 @@ service cloud.firestore {
             && request.auth.uid == patientId
             && request.resource.data.assignedDoctorIds == resource.data.assignedDoctorIds);
       allow delete: if isAdmin();
+
+      // Health data: readings, twin state, baseline and alerts.
+      // Readable by the patient, assigned doctors and admins.
+      // Not writable from any browser. Only the server (ingest API) writes here.
+      match /readings/{readingId} {
+        allow read: if canReadPatient(patientId);
+        allow write: if false;
+      }
+      match /twin/{docId} {
+        allow read: if canReadPatient(patientId);
+        allow write: if false;
+      }
+      match /baseline/{docId} {
+        allow read: if canReadPatient(patientId);
+        allow write: if false;
+      }
+      match /alerts/{alertId} {
+        allow read: if canReadPatient(patientId);
+        allow write: if false;
+      }
     }
 
     // Everything else is denied until later weeks add it.
