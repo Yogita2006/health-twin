@@ -12,6 +12,8 @@ import { HudLoading, HudPanel, HudShell, SHORT_LABEL, StatusTag } from "@/compon
 import Waveform from "@/components/panels/Waveform";
 import TrendChart from "@/components/panels/TrendChart";
 import RegionPanel, { REGION_LABEL } from "@/components/panels/RegionPanel";
+import ImagingPanel from "@/components/panels/ImagingPanel";
+import GenomePanel from "@/components/panels/GenomePanel";
 import TwinBody from "@/components/twin3d/TwinBody";
 import { BASELINE_MIN_READINGS } from "@/lib/engine/config";
 import { METRICS, METRIC_INFO, Metric, MetricState, Region, Status, TwinState } from "@/lib/engine/types";
@@ -105,7 +107,7 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 <div className={`hud-vital${outline(pressure)}`}>
-                  <span className="hud-label">Blood pressure</span>
+                  <span className="hud-label">Pressure</span>
                   <p className="hud-vital-value">
                     {show(state, "sys")}/{show(state, "dia")} <span className="hud-unit">mmHg</span>
                   </p>
@@ -117,8 +119,8 @@ export default function DashboardPage() {
               </div>
             </HudPanel>
 
-            <HudPanel index="02" title="Recent trend" sub={`Last ${readings.length} readings / Live`}>
-              <TrendChart readings={readings} state={state} />
+            <HudPanel index="02" title="Imaging view" sub="Illustrative cross-section / Follows the selected region">
+              <ImagingPanel state={state} selected={region} />
             </HudPanel>
 
             <HudPanel index="03" title="Baseline comparison" sub="Marker = latest value / Band = range" grow>
@@ -151,7 +153,7 @@ export default function DashboardPage() {
 
           {/* Centre column: the 3D twin */}
           <div className="hud-col hud-col-centre">
-            <HudPanel index="04" title="Human digital twin" sub="Interactive 3D model / Colours follow stored readings" right={<StatusTag status="within" label="Live model" />} grow>
+            <HudPanel index="04" title="Human digital twin" sub="Interactive 3D model / Colours follow stored readings" right={<StatusTag status="within" label="Live model" />}>
               <div className="hud-twin">
                 <TwinBody state={state} selected={region} onSelect={setRegion} />
                 <div className="hud-callouts">
@@ -184,15 +186,23 @@ export default function DashboardPage() {
                 <span className="hud-label">03 / Click an organ</span>
               </div>
             </HudPanel>
+
+            <HudPanel index="05" title="Recent trend" sub={`Last ${readings.length} readings / Live`} grow>
+              <TrendChart readings={readings} state={state} />
+            </HudPanel>
           </div>
 
           {/* Right column: details, alerts, overview */}
           <div className="hud-col">
-            <HudPanel index="05" title="Region detail" sub="Stored data behind the selected region">
+            <HudPanel index="06" title="Region detail" sub="Stored data behind the selected region">
               <RegionPanel state={state} selected={region} onSelect={setRegion} />
             </HudPanel>
 
-            <HudPanel index="06" title="Alerts" sub="Information only / Not a diagnosis" right={<span className="hud-label">{alerts.length} recent</span>}>
+            <HudPanel index="07" title="Genomic sequence" sub="Synthetic demo / Not genetic data">
+              <GenomePanel seed={user.uid} />
+            </HudPanel>
+
+            <HudPanel index="08" title="Alerts" sub="Information only / Not a diagnosis" right={<span className="hud-label">{alerts.length} recent</span>}>
               {alerts.length === 0 ? (
                 <p className="hud-text hud-plain">No alerts.</p>
               ) : (
@@ -206,7 +216,7 @@ export default function DashboardPage() {
               )}
             </HudPanel>
 
-            <HudPanel index="07" title="Twin overview" sub="All six measurements at a glance" grow>
+            <HudPanel index="09" title="Twin overview" sub="All six measurements at a glance" grow>
               <div className="hud-overview">
                 <div className="hud-ring" style={{ background: `conic-gradient(#36e3d6 0 ${(withinCount / METRICS.length) * 100}%, #12404c 0)` }}>
                   <div className="hud-ring-text">
