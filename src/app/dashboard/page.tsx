@@ -7,6 +7,9 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useAlerts, useTwinState } from "@/hooks/useTwin";
+import { useRecentReadings } from "@/hooks/useReadings";
+import Waveform from "@/components/panels/Waveform";
+import TrendChart from "@/components/panels/TrendChart";
 import { BASELINE_MIN_READINGS } from "@/lib/engine/config";
 import { METRICS, METRIC_INFO, Region, Status } from "@/lib/engine/types";
 
@@ -30,6 +33,7 @@ export default function DashboardPage() {
   const { user, role, loading } = useAuth();
   const { state, ready } = useTwinState(user ? user.uid : null);
   const alerts = useAlerts(user ? user.uid : null);
+  const readings = useRecentReadings(user ? user.uid : null);
 
   // Nobody reaches this page without signing in.
   useEffect(() => {
@@ -113,6 +117,11 @@ export default function DashboardPage() {
                   );
                 })}
               </div>
+            </section>
+
+            <section className="grid gap-3 lg:grid-cols-2">
+              <Waveform bpm={state.metrics.hr.value} />
+              <TrendChart readings={readings} state={state} />
             </section>
 
             <section>
