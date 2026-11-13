@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// Healthcare Digital Twin: security rules, version 1 (accounts and patient records).
+// Roles live in users/{uid}.role and are "patient", "doctor" or "admin".
+// These rules run on Google's servers and cannot be bypassed from the browser.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Account roles.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // A new account can only give itself the "patient" role.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'patient';
+      // A user may edit their own details but never their own role.
+      allow update: if isAdmin()
+        || (signedIn()
+            && request.auth.uid == uid
+            && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    // Patient records. The document ID is the patient's account UID.
+    match /patients/{patientId} {
+      // The patient, an assigned doctor, or an admin may read.
+      allow read: if signedIn()
+        && (request.auth.uid == patientId
+            || request.auth.uid in resource.data.assignedDoctorIds
+            || isAdmin());
+      // A patient creates their own record with no doctors assigned.
+      allow create: if signedIn()
+        && request.auth.uid == patientId
+        && request.resource.data.assignedDoctorIds.size() == 0;
+      // A patient may edit their profile but not who their doctors are.
+      allow update: if isAdmin()
+        || (signedIn()
+            && request.auth.uid == patientId
+            && request.resource.data.assignedDoctorIds == resource.data.assignedDoctorIds);
+      allow delete: if isAdmin();
+    }
+
+    // Everything else is denied until later weeks add it.
+  }
+}
