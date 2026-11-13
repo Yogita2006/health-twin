@@ -59,6 +59,30 @@ export function HudPanel({ index, title, sub, right, grow, children }: { index: 
   );
 }
 
+// The frame for the sign-in and register pages: brand on top, one panel below.
+export function HudAuth({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
+  return (
+    <main className="hud hud-centre">
+      <div className="hud-auth">
+        <div className="hud-brand">
+          <div className="hud-logo" aria-hidden="true" />
+          <div>
+            <p className="hud-label hud-label-accent hud-plain">Connected health / Digital twin platform</p>
+            <h1 className="hud-title">Full-Body Digital Twin</h1>
+            <p className="hud-label hud-plain">Physiology / Baseline / Trends / Alerts</p>
+          </div>
+        </div>
+        <HudPanel index="00" title={title} sub={sub}>
+          {children}
+        </HudPanel>
+        <p className="hud-label hud-note" style={{ textAlign: "center" }}>
+          Educational prototype / Synthetic data / Not for clinical use
+        </p>
+      </div>
+    </main>
+  );
+}
+
 // Shown while the sign-in state is being checked.
 export function HudLoading({ text = "Loading" }: { text?: string }) {
   return (

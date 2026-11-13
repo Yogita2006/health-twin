@@ -66,8 +66,8 @@ export const SURFACE_FRAGMENT = `
   varying vec3 vView;
   void main() {
     float facing = abs(dot(normalize(vNormal), normalize(vView)));
-    float rim = pow(1.0 - facing, 3.0);
-    gl_FragColor = vec4(uColor, (0.006 + rim * 0.34) * uBoost);
+    float rim = pow(1.0 - facing, 3.4);
+    gl_FragColor = vec4(uColor, (0.004 + rim * 0.3) * uBoost);
   }
 `;
 
@@ -81,7 +81,9 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0x000000, 0);
   const canvas = renderer.domElement;
-  canvas.style.display = "block";
+  // The canvas is pinned to its box, so the box decides the size and not the other way round.
+  canvas.style.position = "absolute";
+  canvas.style.inset = "0";
   canvas.style.width = "100%";
   canvas.style.height = "100%";
   container.appendChild(canvas);
@@ -139,17 +141,18 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
       blending: THREE.AdditiveBlending,
     })
   );
-  const wireMaterial = keepM(new THREE.LineBasicMaterial({ color: HOLOGRAM, transparent: true, opacity: 0.05, depthWrite: false, blending: THREE.AdditiveBlending }));
-  const dotMaterial = keepM(new THREE.PointsMaterial({ color: "#bffaf4", size: 0.007, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const wireMaterial = keepM(new THREE.LineBasicMaterial({ color: HOLOGRAM, transparent: true, opacity: 0.028, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const dotMaterial = keepM(new THREE.PointsMaterial({ color: "#bffaf4", size: 0.006, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending }));
 
   const regionMaterials = {} as Record<Region, THREE.MeshStandardMaterial>;
-  // The heart is solid. The lungs and the skeleton are partly see-through, so
-  // the heart stays visible behind the lungs and the organs behind the ribs.
+  // The skeleton and the heart are nearly solid so that they read clearly
+  // through the faint shell. The lungs are partly see-through, so the heart
+  // stays visible behind them.
   const LOOK: Record<Region, { opacity: number; solid: boolean; glow: number; order: number }> = {
     heart: { opacity: 1, solid: true, glow: 0.6, order: 1 },
     brain: { opacity: 1, solid: true, glow: 0.5, order: 1 },
     lungs: { opacity: 0.58, solid: false, glow: 0.5, order: 2 },
-    skeleton: { opacity: 0.62, solid: false, glow: 0.18, order: 3 },
+    skeleton: { opacity: 0.9, solid: true, glow: 0.3, order: 3 },
     body: { opacity: 1, solid: false, glow: 0, order: 4 },
   };
   for (const region of REGIONS) {
@@ -164,6 +167,19 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
         opacity: LOOK[region].opacity,
         depthWrite: LOOK[region].solid,
       })
+    );
+  }
+
+  // The bones cover the organs, so each organ is also drawn as a soft glow that
+  // shines through whatever is in front of it. That keeps its status colour
+  // visible while the skeleton stays crisp.
+  const GLOW: Partial<Record<Region, number>> = { heart: 0.1, lungs: 0.05, brain: 0.05 };
+  const glowMaterials = {} as Partial<Record<Region, THREE.MeshBasicMaterial>>;
+  for (const region of REGIONS) {
+    const strength = GLOW[region];
+    if (strength === undefined) continue;
+    glowMaterials[region] = keepM(
+      new THREE.MeshBasicMaterial({ color: STATUS_COLOR.no_data, transparent: true, opacity: strength, depthTest: false, depthWrite: false })
     );
   }
 
@@ -207,6 +223,13 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
             mesh.position.copy(centre);
             (object.name.startsWith("heart") ? beating : breathing).push(mesh);
           }
+          const glowMaterial = glowMaterials[region];
+          if (glowMaterial && !object.name.startsWith("airway")) {
+            const glow = new THREE.Mesh(mesh.geometry, glowMaterial);
+            glow.raycast = () => {};
+            glow.renderOrder = 4;
+            mesh.add(glow); // a child, so it moves and pulses with the organ
+          }
         } else {
           // The skin: glowing surface plus points of light. Clicking it selects "whole body".
           const mesh = object as THREE.Mesh;
@@ -217,7 +240,7 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
           pickable.push(mesh);
           const all = mesh.geometry.getAttribute("position");
           const sample: number[] = [];
-          for (let i = 0; i < all.count; i += 3) sample.push(all.getX(i), all.getY(i), all.getZ(i));
+          for (let i = 0; i < all.count; i += 11) sample.push(all.getX(i), all.getY(i), all.getZ(i));
           const dots = keepG(new THREE.BufferGeometry());
           dots.setAttribute("position", new THREE.Float32BufferAttribute(sample, 3));
           const points = new THREE.Points(dots, dotMaterial);
@@ -271,11 +294,16 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
         material.color.set(colour);
         material.emissive.set(colour);
         material.emissiveIntensity = selected === region ? 0.6 : LOOK.skeleton.glow;
-        material.opacity = selected === region ? 0.95 : LOOK.skeleton.opacity;
+        material.opacity = selected === region ? 1 : LOOK.skeleton.opacity;
       } else {
         material.color.set(STATUS_COLOR[status]);
         material.emissive.set(STATUS_COLOR[status]);
         material.emissiveIntensity = selected === region ? 1.1 : LOOK[region].glow;
+        const glowMaterial = glowMaterials[region];
+        if (glowMaterial) {
+          glowMaterial.color.set(STATUS_COLOR[status]);
+          glowMaterial.opacity = (GLOW[region] ?? 0) * (selected === region ? 1.7 : 1) * (status === "no_data" ? 0.5 : 1);
+        }
       }
     }
 
@@ -285,7 +313,7 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
     (surfaceMaterial.uniforms.uColor.value as THREE.Color).set(shell);
     surfaceMaterial.uniforms.uBoost.value = selected === "body" ? 1.9 : 1;
     wireMaterial.color.set(shell);
-    wireMaterial.opacity = selected === "body" ? 0.14 : 0.05;
+    wireMaterial.opacity = selected === "body" ? 0.12 : 0.028;
   };
 
   // ---------- Clicking an organ ----------
@@ -376,6 +404,7 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
     geometries.forEach((g) => g.dispose());
     materials.forEach((m) => m.dispose());
     renderer.dispose();
+    renderer.forceContextLoss(); // hands the graphics memory back straight away
     canvas.remove();
   };
 

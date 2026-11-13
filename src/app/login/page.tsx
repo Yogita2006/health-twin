@@ -6,9 +6,7 @@ import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { authErrorMessage } from "@/lib/auth/errors";
-
-const inputClass =
-  "w-full rounded-lg border border-cyan-500/30 bg-slate-900 px-4 py-3 text-slate-100 outline-none focus:border-cyan-400";
+import { HudAuth } from "@/components/hud/Hud";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,36 +31,31 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
-      <form onSubmit={handleSubmit} className="w-full max-w-md space-y-5 rounded-2xl border border-cyan-500/20 bg-slate-900/60 p-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-cyan-300">Sign in</h1>
-          <p className="mt-1 text-sm text-slate-400">Healthcare Digital Twin</p>
-        </div>
-
-        <label className="block space-y-2 text-sm">
-          <span className="text-slate-300">Email</span>
-          <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+    <HudAuth title="Sign in" sub="Secure session / Firebase Authentication">
+      <form onSubmit={handleSubmit}>
+        <label className="hud-field">
+          <span className="hud-label">Email</span>
+          <input className="hud-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
         </label>
 
-        <label className="block space-y-2 text-sm">
-          <span className="text-slate-300">Password</span>
-          <input className={inputClass} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <label className="hud-field">
+          <span className="hud-label">Password</span>
+          <input className="hud-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
         </label>
 
-        {error && <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>}
+        {error && <p className="hud-error">{error}</p>}
 
-        <button type="submit" disabled={busy} className="w-full rounded-lg bg-cyan-500 px-4 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
-          {busy ? "Signing in..." : "Sign in"}
+        <button type="submit" disabled={busy} className="hud-btn hud-btn-solid hud-btn-block">
+          {busy ? "Signing in" : "Sign in"}
         </button>
 
-        <p className="text-center text-sm text-slate-400">
+        <p className="hud-text hud-note" style={{ textAlign: "center" }}>
           New here?{" "}
-          <Link href="/register" className="text-cyan-300 underline">
+          <Link href="/register" className="hud-link">
             Create an account
           </Link>
         </p>
       </form>
-    </main>
+    </HudAuth>
   );
 }

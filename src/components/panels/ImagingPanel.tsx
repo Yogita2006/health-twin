@@ -1,6 +1,7 @@
 "use client";
 
-// "Imaging view": an illustrative cross-section of the head or chest.
+// The "cross-section" view inside the Region detail panel: an illustrative
+// slice through the head (for the brain) or the chest (for everything else).
 // The pictures are drawn by code (see scanArt.ts). They are not scans and hold
 // no patient data. The outline colours of the lungs and heart follow the twin.
 import { useEffect, useRef, useState } from "react";
@@ -15,18 +16,10 @@ const STATUS_COLOR: Record<Status, string> = {
   no_data: "#6b8a93",
 };
 
-const VIEW_LABEL: Record<ScanView, string> = { head: "Head", chest: "Chest" };
-const VIEWS: ScanView[] = ["head", "chest"];
-
-// The view that matches whichever region is selected on the 3D body.
-const viewFor = (region: Region): ScanView => (region === "brain" ? "head" : "chest");
-
 export default function ImagingPanel({ state, selected }: { state: TwinState | null; selected: Region }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [slice, setSlice] = useState(Math.floor(SCAN_SLICES / 2));
-  // A view picked by hand stays until a different region is selected.
-  const [choice, setChoice] = useState<{ region: Region; view: ScanView } | null>(null);
-  const view = choice && choice.region === selected ? choice.view : viewFor(selected);
+  const view: ScanView = selected === "brain" ? "head" : "chest";
 
   const lungs: Status = state ? state.regions.lungs : "no_data";
   const heart: Status = state ? state.regions.heart : "no_data";
@@ -61,33 +54,23 @@ export default function ImagingPanel({ state, selected }: { state: TwinState | n
 
   return (
     <div>
+      <canvas ref={canvasRef} className="hud-scan hud-note" role="img" aria-label={`Illustrative ${view} cross-section, slice ${slice + 1} of ${SCAN_SLICES}. Not a scan.`} />
       <div className="hud-split">
-        <div className="hud-chips">
-          {VIEWS.map((v) => (
-            <button key={v} onClick={() => setChoice({ region: selected, view: v })} className={v === view ? "hud-chip hud-chip-on" : "hud-chip"}>
-              {VIEW_LABEL[v]}
-            </button>
-          ))}
-        </div>
-        <span className="hud-label">
+        <input
+          type="range"
+          className="hud-range"
+          min={0}
+          max={SCAN_SLICES - 1}
+          value={slice}
+          onChange={(event) => setSlice(Number(event.target.value))}
+          aria-label="Slice position"
+        />
+        <span className="hud-label" style={{ whiteSpace: "nowrap" }}>
           Slice {slice + 1} / {SCAN_SLICES}
         </span>
       </div>
-
-      <canvas ref={canvasRef} className="hud-scan hud-note" role="img" aria-label={`Illustrative ${VIEW_LABEL[view].toLowerCase()} cross-section, slice ${slice + 1} of ${SCAN_SLICES}. Not a scan.`} />
-
-      <input
-        type="range"
-        className="hud-range"
-        min={0}
-        max={SCAN_SLICES - 1}
-        value={slice}
-        onChange={(event) => setSlice(Number(event.target.value))}
-        aria-label="Slice position"
-      />
-
       {view === "chest" && (
-        <div className="hud-legend" style={{ marginTop: 4 }}>
+        <div className="hud-legend" style={{ marginTop: 2 }}>
           <StatusTag status={lungs} label={`Lungs outline: ${lungs === "no_data" ? "no data" : lungs}`} />
           <StatusTag status={heart} label={`Heart outline: ${heart === "no_data" ? "no data" : heart}`} />
         </div>

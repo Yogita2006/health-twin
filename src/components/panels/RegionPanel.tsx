@@ -1,8 +1,11 @@
 "use client";
 
-// Shows a 3D close-up of whichever body region is selected in the twin, and
-// the stored data behind it.
+// Everything about the body region selected on the twin, in one panel:
+// a picture of it (a turning 3D close-up, or an illustrative cross-section)
+// and the stored data behind it.
+import { useState } from "react";
 import { StatusTag } from "@/components/hud/Hud";
+import ImagingPanel from "@/components/panels/ImagingPanel";
 import OrganView from "@/components/twin3d/OrganView";
 import { REGION_METRICS } from "@/lib/engine/config";
 import { METRIC_INFO, Region, Status, TwinState } from "@/lib/engine/types";
@@ -22,12 +25,15 @@ const NO_DATA_NOTE: Partial<Record<Region, string>> = {
   skeleton: "No skeletal data is collected in this prototype, so this region shows no status.",
 };
 
+type Picture = "model" | "section";
+
 export default function RegionPanel({ state, selected, onSelect }: { state: TwinState | null; selected: Region; onSelect: (region: Region) => void }) {
+  const [picture, setPicture] = useState<Picture>("model");
   const status: Status = state ? state.regions[selected] : "no_data";
   const metrics = REGION_METRICS[selected];
 
   return (
-    <div>
+    <div className="hud-fill">
       <div className="hud-chips">
         {REGIONS.map((region) => (
           <button key={region} onClick={() => onSelect(region)} className={region === selected ? "hud-chip hud-chip-on" : "hud-chip"}>
@@ -36,10 +42,24 @@ export default function RegionPanel({ state, selected, onSelect }: { state: Twin
         ))}
       </div>
 
-      <OrganView state={state} selected={selected} />
+      <div className="hud-split" style={{ marginTop: 12 }}>
+        <div>
+          <h3 className="hud-region-name" style={{ marginTop: 0 }}>
+            {REGION_LABEL[selected]}
+          </h3>
+          <StatusTag status={status} />
+        </div>
+        <div className="hud-chips">
+          <button onClick={() => setPicture("model")} className={picture === "model" ? "hud-chip hud-chip-on" : "hud-chip"}>
+            3D model
+          </button>
+          <button onClick={() => setPicture("section")} className={picture === "section" ? "hud-chip hud-chip-on" : "hud-chip"}>
+            Cross-section
+          </button>
+        </div>
+      </div>
 
-      <h3 className="hud-region-name">{REGION_LABEL[selected]}</h3>
-      <StatusTag status={status} />
+      {picture === "model" ? <OrganView state={state} selected={selected} /> : <ImagingPanel state={state} selected={selected} />}
 
       {metrics.length === 0 && <p className="hud-text hud-note">{NO_DATA_NOTE[selected]}</p>}
 

@@ -7,9 +7,7 @@ import { createUserWithEmailAndPassword, deleteUser, updateProfile, User } from 
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 import { authErrorMessage } from "@/lib/auth/errors";
-
-const inputClass =
-  "w-full rounded-lg border border-cyan-500/30 bg-slate-900 px-4 py-3 text-slate-100 outline-none focus:border-cyan-400";
+import { HudAuth } from "@/components/hud/Hud";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -65,41 +63,36 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
-      <form onSubmit={handleSubmit} className="w-full max-w-md space-y-5 rounded-2xl border border-cyan-500/20 bg-slate-900/60 p-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-cyan-300">Create your account</h1>
-          <p className="mt-1 text-sm text-slate-400">Educational prototype. Use made-up details only.</p>
-        </div>
-
-        <label className="block space-y-2 text-sm">
-          <span className="text-slate-300">Full name</span>
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required />
+    <HudAuth title="Create your account" sub="Educational prototype / Use made-up details only">
+      <form onSubmit={handleSubmit}>
+        <label className="hud-field">
+          <span className="hud-label">Full name</span>
+          <input className="hud-input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required />
         </label>
 
-        <label className="block space-y-2 text-sm">
-          <span className="text-slate-300">Email</span>
-          <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label className="hud-field">
+          <span className="hud-label">Email</span>
+          <input className="hud-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
         </label>
 
-        <label className="block space-y-2 text-sm">
-          <span className="text-slate-300">Password (at least 6 characters)</span>
-          <input className={inputClass} type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
+        <label className="hud-field">
+          <span className="hud-label">Password (at least 6 characters)</span>
+          <input className="hud-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} autoComplete="new-password" required />
         </label>
 
-        {error && <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>}
+        {error && <p className="hud-error">{error}</p>}
 
-        <button type="submit" disabled={busy} className="w-full rounded-lg bg-cyan-500 px-4 py-3 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
-          {busy ? "Creating account..." : "Create account"}
+        <button type="submit" disabled={busy} className="hud-btn hud-btn-solid hud-btn-block">
+          {busy ? "Creating account" : "Create account"}
         </button>
 
-        <p className="text-center text-sm text-slate-400">
+        <p className="hud-text hud-note" style={{ textAlign: "center" }}>
           Already registered?{" "}
-          <Link href="/login" className="text-cyan-300 underline">
+          <Link href="/login" className="hud-link">
             Sign in
           </Link>
         </p>
       </form>
-    </main>
+    </HudAuth>
   );
 }

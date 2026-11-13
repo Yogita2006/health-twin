@@ -22,7 +22,8 @@ export function createOrganScene({ container, modelUrl }: { container: HTMLEleme
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0x000000, 0);
   const canvas = renderer.domElement;
-  canvas.style.display = "block";
+  canvas.style.position = "absolute";
+  canvas.style.inset = "0";
   canvas.style.width = "100%";
   canvas.style.height = "100%";
   container.appendChild(canvas);
@@ -181,6 +182,7 @@ export function createOrganScene({ container, modelUrl }: { container: HTMLEleme
       organMaterial.dispose();
       shellMaterial.dispose();
       renderer.dispose();
+      renderer.forceContextLoss(); // hands the graphics memory back straight away
       canvas.remove();
     },
   };

@@ -3,10 +3,11 @@
 // Virtual wearable: stands in for a real device. It makes up plausible readings
 // and sends them to the ingest API, exactly as a real wearable would later.
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { Context } from "@/lib/engine/types";
+import { useTwinState } from "@/hooks/useTwin";
+import { HudLoading, HudPanel, HudShell, StatusTag } from "@/components/hud/Hud";
+import { Context, METRICS, METRIC_INFO } from "@/lib/engine/types";
 
 const INTERVAL_MS = 5000;
 
@@ -42,6 +43,8 @@ export default function WearablePage() {
   const [rising, setRising] = useState(false);
   const [sent, setSent] = useState(0);
   const [last, setLast] = useState("Nothing sent yet.");
+  const [lastReading, setLastReading] = useState<ReturnType<typeof makeReading> | null>(null);
+  const { state } = useTwinState(user ? user.uid : null);
 
   // Refs hold the latest settings so the timer always reads current values.
   const contextRef = useRef(context);
@@ -77,6 +80,7 @@ export default function WearablePage() {
         return;
       }
       setSent((n) => n + 1);
+      setLastReading(reading);
       setLast(
         `Sent heart rate ${reading.hr}, pressure ${reading.sys}/${reading.dia}, SpO2 ${reading.spo2}. ` +
           `Heart region: ${result.regions.heart}. Resting readings stored: ${result.restingCount}.` +
@@ -102,69 +106,79 @@ export default function WearablePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, user]);
 
-  if (loading || !user) {
-    return <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400">Loading...</main>;
-  }
+  if (loading || !user) return <HudLoading />;
 
-  const chip = (on: boolean) =>
-    `rounded-lg border px-4 py-2 text-sm ${on ? "border-cyan-400 bg-cyan-400/15 text-cyan-200" : "border-slate-700 text-slate-300 hover:border-slate-500"}`;
+  const chip = (on: boolean) => (on ? "hud-chip hud-chip-on" : "hud-chip");
 
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <header className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-cyan-300">Virtual wearable</h1>
-          <Link href="/dashboard" className="text-sm text-cyan-200 underline">
-            Back to dashboard
-          </Link>
-        </header>
+    <HudShell active="wearable" state={state}>
+      <p className="hud-notice">Simulated device. Every reading sent from this page is synthetic and is labelled as simulated.</p>
 
-        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          Simulated device. Every reading sent from this page is synthetic and is labelled as simulated.
-        </p>
-
-        <section className="space-y-5 rounded-2xl border border-cyan-500/20 bg-slate-900/60 p-6">
-          <div>
-            <p className="mb-2 text-sm text-slate-400">Activity context</p>
-            <div className="flex gap-2">
-              <button className={chip(context === "resting")} onClick={() => setContext("resting")}>Resting</button>
-              <button className={chip(context === "active")} onClick={() => setContext("active")}>Active</button>
-            </div>
+      <div className="hud-two">
+        <HudPanel index="01" title="Virtual wearable" sub="Stands in for a real device / Sends to the ingest API" right={<StatusTag status={running ? "within" : "no_data"} label={running ? "Streaming" : "Idle"} />}>
+          <p className="hud-label hud-plain">Activity context</p>
+          <div className="hud-chips hud-note">
+            <button className={chip(context === "resting")} onClick={() => setContext("resting")}>
+              Resting
+            </button>
+            <button className={chip(context === "active")} onClick={() => setContext("active")}>
+              Active
+            </button>
           </div>
 
-          <div>
-            <p className="mb-2 text-sm text-slate-400">Scenario</p>
-            <div className="flex gap-2">
-              <button className={chip(!rising)} onClick={() => setRising(false)}>Steady</button>
-              <button className={chip(rising)} onClick={() => setRising(true)}>Rising heart rate</button>
-            </div>
+          <p className="hud-label" style={{ margin: "16px 0 0" }}>
+            Scenario
+          </p>
+          <div className="hud-chips hud-note">
+            <button className={chip(!rising)} onClick={() => setRising(false)}>
+              Steady
+            </button>
+            <button className={chip(rising)} onClick={() => setRising(true)}>
+              Rising heart rate
+            </button>
           </div>
 
-          <div className="flex flex-wrap gap-3 pt-2">
-            <button
-              onClick={() => setRunning((r) => !r)}
-              className={`rounded-lg px-5 py-3 font-semibold ${running ? "bg-red-500 text-white hover:bg-red-400" : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"}`}
-            >
+          <div className="hud-actions">
+            <button onClick={() => setRunning((r) => !r)} className={running ? "hud-btn hud-btn-large hud-btn-danger" : "hud-btn hud-btn-large hud-btn-solid"}>
               {running ? "Stop streaming" : "Start streaming"}
             </button>
-            <button onClick={sendOne} disabled={running} className="rounded-lg border border-cyan-500/40 px-5 py-3 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-40">
+            <button onClick={sendOne} disabled={running} className="hud-btn hud-btn-large">
               Send one reading
             </button>
           </div>
-        </section>
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-sm">
-          <p className="text-slate-400">
-            Readings sent this session: <span className="font-semibold text-slate-100">{sent}</span>
-            {running && <span className="ml-3 text-cyan-300">streaming every {INTERVAL_MS / 1000} seconds</span>}
+          <p className="hud-label hud-note" style={{ marginTop: 16 }}>
+            Stop streaming when you are not demonstrating / Each reading uses part of the free daily database quota
           </p>
-          <p className="mt-3 text-slate-300">{last}</p>
-        </section>
+        </HudPanel>
 
-        <p className="text-xs text-slate-500">
-          Stop streaming when you are not demonstrating. Each reading uses part of the free daily database quota.
-        </p>
+        <div className="hud-stack">
+          <HudPanel index="02" title="Transmission" sub={running ? `One reading every ${INTERVAL_MS / 1000} seconds` : "Not streaming"}>
+            <span className="hud-label">Readings sent this session</span>
+            <p className="hud-big">{sent}</p>
+            <p className="hud-text hud-plain">{last}</p>
+          </HudPanel>
+
+          <HudPanel index="03" title="Last reading sent" sub="Synthetic values / As received by the server">
+            {lastReading ? (
+              <div className="hud-cards">
+                {METRICS.map((m) => (
+                  <div key={m} className="hud-metric" style={{ marginTop: 0 }}>
+                    <div className="hud-metric-top">
+                      <span>{METRIC_INFO[m].label}</span>
+                    </div>
+                    <p className="hud-metric-value">
+                      {lastReading[m].toFixed(METRIC_INFO[m].decimals)} <span className="hud-unit">{METRIC_INFO[m].unit}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="hud-text hud-plain">Nothing sent yet.</p>
+            )}
+          </HudPanel>
+        </div>
       </div>
-    </main>
+    </HudShell>
   );
 }
