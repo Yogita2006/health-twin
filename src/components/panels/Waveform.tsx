@@ -5,7 +5,7 @@
 // and shows nothing about the heart's electrical activity.
 import { useEffect, useRef } from "react";
 
-const HEIGHT = 120;
+const HEIGHT = 96;
 const SPEED = 110; // pixels per second the trace travels
 
 // Height of the trace at a point in one beat (phase runs from 0 to 1).
@@ -50,7 +50,7 @@ export default function Waveform({ bpm }: { bpm: number | null }) {
       ctx.clearRect(0, 0, width, HEIGHT);
 
       // Faint grid, like monitor paper.
-      ctx.strokeStyle = "rgba(34, 211, 238, 0.08)";
+      ctx.strokeStyle = "rgba(54, 227, 214, 0.09)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let x = 0; x <= width; x += 24) {
@@ -66,7 +66,9 @@ export default function Waveform({ bpm }: { bpm: number | null }) {
       // The trace.
       const baseline = HEIGHT * 0.68;
       const scale = HEIGHT * 0.52;
-      ctx.strokeStyle = "#22d3ee";
+      ctx.strokeStyle = "#36e3d6";
+      ctx.shadowColor = "rgba(54, 227, 214, 0.6)";
+      ctx.shadowBlur = 6;
       ctx.lineWidth = 2;
       ctx.lineJoin = "round";
       ctx.beginPath();
@@ -76,6 +78,7 @@ export default function Waveform({ bpm }: { bpm: number | null }) {
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
+      ctx.shadowBlur = 0;
     };
 
     const tick = (now: number) => {
@@ -116,18 +119,14 @@ export default function Waveform({ bpm }: { bpm: number | null }) {
   }, []);
 
   return (
-    <div className="rounded-xl border border-cyan-500/20 bg-slate-900/60 p-4">
-      <div className="mb-2 flex items-baseline justify-between">
-        <p className="text-sm text-slate-300">Heart rhythm trace</p>
-        <p className="text-sm text-slate-400">{bpm ? `${Math.round(bpm)} bpm` : "waiting for data"}</p>
-      </div>
+    <div>
       <canvas
         ref={canvasRef}
-        style={{ width: "100%", height: HEIGHT, display: "block" }}
+        style={{ width: "100%", height: HEIGHT, display: "block", border: "1px solid #12404c", borderRadius: 3, background: "rgba(3, 14, 21, 0.7)" }}
         role="img"
         aria-label={bpm ? `Illustrative heart rhythm trace at ${Math.round(bpm)} beats per minute` : "Heart rhythm trace, waiting for data"}
       />
-      <p className="mt-2 text-xs text-slate-500">Illustrative trace driven by the latest heart rate. Not an ECG recording.</p>
+      <p className="hud-label hud-note">Illustrative trace driven by heart rate / Not an ECG recording</p>
     </div>
   );
 }

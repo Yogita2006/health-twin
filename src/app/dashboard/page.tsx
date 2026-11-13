@@ -1,30 +1,56 @@
 "use client";
 
+// The main screen: the 3D twin in the centre, live data on the left,
+// details, alerts and an overview on the right.
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useAlerts, useTwinState } from "@/hooks/useTwin";
 import { useRecentReadings } from "@/hooks/useReadings";
+import { HudLoading, HudPanel, HudShell, SHORT_LABEL, StatusTag } from "@/components/hud/Hud";
 import Waveform from "@/components/panels/Waveform";
 import TrendChart from "@/components/panels/TrendChart";
+import RegionPanel, { REGION_LABEL } from "@/components/panels/RegionPanel";
 import TwinBody from "@/components/twin3d/TwinBody";
-import RegionPanel from "@/components/panels/RegionPanel";
 import { BASELINE_MIN_READINGS } from "@/lib/engine/config";
-import { METRICS, METRIC_INFO, Region, Status } from "@/lib/engine/types";
+import { METRICS, METRIC_INFO, Metric, MetricState, Region, Status, TwinState } from "@/lib/engine/types";
 
-const STATUS_STYLE: Record<Status, { label: string; box: string; text: string }> = {
-  within: { label: "Within range", box: "border-emerald-500/40 bg-emerald-500/10", text: "text-emerald-300" },
-  watch: { label: "Watch", box: "border-amber-500/50 bg-amber-500/10", text: "text-amber-300" },
-  outside: { label: "Outside range", box: "border-red-500/60 bg-red-500/10", text: "text-red-300" },
-  no_data: { label: "No data", box: "border-slate-700 bg-slate-900/40", text: "text-slate-400" },
-};
+// Where each label sits around the 3D body.
+const CALLOUTS: { region: Region; side: "left" | "right"; top: string }[] = [
+  { region: "brain", side: "right", top: "7%" },
+  { region: "lungs", side: "left", top: "22%" },
+  { region: "heart", side: "right", top: "30%" },
+  { region: "body", side: "left", top: "47%" },
+  { region: "skeleton", side: "right", top: "60%" },
+];
+
+const SEVERITY: Record<Status, number> = { no_data: 0, within: 1, watch: 2, outside: 3 };
+const worse = (a: Status, b: Status): Status => (SEVERITY[a] >= SEVERITY[b] ? a : b);
+
+const show = (state: TwinState, m: Metric) => state.metrics[m].value.toFixed(METRIC_INFO[m].decimals);
+
+// One line of stored data for each label next to the body.
+function calloutData(state: TwinState, region: Region): string {
+  if (region === "heart") return `${show(state, "hr")} bpm · ${show(state, "sys")}/${show(state, "dia")} mmHg`;
+  if (region === "lungs") return `${show(state, "spo2")} % · ${show(state, "rr")} /min`;
+  if (region === "body") return `${show(state, "tempC")} °C`;
+  return "No data collected";
+}
+
+// Places a value on a bar where the middle half of the bar is the usual range.
+function gaugePosition(metric: MetricState): number {
+  const span = metric.high - metric.low;
+  if (span <= 0) return 50;
+  const position = 25 + ((metric.value - metric.low) / span) * 50;
+  return Math.min(98, Math.max(2, position));
+}
+
+const outline = (status: Status) => (status === "watch" ? " hud-outline-watch" : status === "outside" ? " hud-outline-outside" : "");
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, role, loading } = useAuth();
+  const { user, loading } = useAuth();
   const { state, ready } = useTwinState(user ? user.uid : null);
   const alerts = useAlerts(user ? user.uid : null);
   const readings = useRecentReadings(user ? user.uid : null);
@@ -35,123 +61,184 @@ export default function DashboardPage() {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
-  if (loading || !user) {
-    return <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400">Loading...</main>;
-  }
+  if (loading || !user) return <HudLoading />;
 
-  async function handleSignOut() {
-    await signOut(auth);
-    router.replace("/login");
-  }
+  const withinCount = state ? METRICS.filter((m) => state.metrics[m].status === "within").length : 0;
+  const pressure: Status = state ? worse(state.metrics.sys.status, state.metrics.dia.status) : "no_data";
+  const restingSoFar = state ? Math.min(state.restingCount, BASELINE_MIN_READINGS) : 0;
 
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-cyan-300">Healthcare Digital Twin</h1>
-            <p className="text-sm text-slate-400">
-              {user.displayName || user.email} · <span className="uppercase tracking-wide text-cyan-200">{role ?? "no role"}</span>
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Link href="/wearable" className="rounded-lg border border-cyan-500/40 px-4 py-2 text-sm text-cyan-200 hover:bg-cyan-500/10">
-              Virtual wearable
+    <HudShell active="overview" state={state}>
+      {!ready && <p className="hud-empty">Loading your twin...</p>}
+
+      {ready && !state && (
+        <HudPanel index="00" title="No data yet" sub="Your twin is waiting for its first reading">
+          <p className="hud-text">Open the virtual wearable and send a reading. This page will update by itself.</p>
+          <p className="hud-note">
+            <Link href="/wearable" className="hud-btn">
+              Open virtual wearable
             </Link>
-            <button onClick={handleSignOut} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:border-slate-500">
-              Sign out
-            </button>
-          </div>
-        </header>
+          </p>
+        </HudPanel>
+      )}
 
-        {!ready && <p className="text-slate-400">Loading your twin...</p>}
-
-        {ready && !state && (
-          <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/60 p-6">
-            <p className="text-lg">Your twin has no data yet.</p>
-            <p className="mt-2 text-slate-400">Open the virtual wearable and send a reading. This page will update by itself.</p>
-          </section>
-        )}
-
-        {state && (
-          <>
-            <section className="flex flex-wrap items-center gap-3 text-sm">
-              {state.source === "simulated" && (
-                <span className="rounded-full border border-amber-500/50 bg-amber-500/10 px-3 py-1 text-amber-200">Simulated data</span>
-              )}
-              <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">Context: {state.context}</span>
-              <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">
-                Updated {new Date(state.updatedAt).toLocaleTimeString()}
-              </span>
-              <span className="text-slate-400">
-                {state.baselineEstablished
-                  ? "Compared with your personal baseline."
-                  : `Personal baseline not yet established (${Math.min(state.restingCount, BASELINE_MIN_READINGS)} of ${BASELINE_MIN_READINGS} resting readings). Using default reference ranges.`}
-              </span>
-            </section>
-
-            <section>
-              <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-400">Digital twin</h2>
-              <div className="grid gap-3 lg:grid-cols-5">
-                <div className="rounded-xl border border-cyan-500/20 bg-slate-900/60 lg:col-span-3">
-                  <TwinBody state={state} selected={region} onSelect={setRegion} />
+      {state && (
+        <div className="hud-grid">
+          {/* Left column: live data */}
+          <div className="hud-col">
+            <HudPanel index="01" title="Live physiology" sub="Latest reading / Compared with your range" right={<StatusTag status="within" label="Live" />}>
+              <div className="hud-vitals">
+                <div className={`hud-vital hud-vital-main${outline(state.metrics.hr.status)}`}>
+                  <span className="hud-label">Heart rate</span>
+                  <p className="hud-vital-value">
+                    {show(state, "hr")} <span className="hud-unit">bpm</span>
+                  </p>
+                  <StatusTag status={state.metrics.hr.status} />
                 </div>
-                <div className="lg:col-span-2">
-                  <RegionPanel state={state} selected={region} onSelect={setRegion} />
+                {(["spo2", "rr", "tempC"] as Metric[]).map((m) => (
+                  <div key={m} className={`hud-vital${outline(state.metrics[m].status)}`}>
+                    <span className="hud-label">{SHORT_LABEL[m]}</span>
+                    <p className="hud-vital-value">
+                      {show(state, m)} <span className="hud-unit">{METRIC_INFO[m].unit}</span>
+                    </p>
+                    <StatusTag status={state.metrics[m].status} />
+                  </div>
+                ))}
+                <div className={`hud-vital${outline(pressure)}`}>
+                  <span className="hud-label">Blood pressure</span>
+                  <p className="hud-vital-value">
+                    {show(state, "sys")}/{show(state, "dia")} <span className="hud-unit">mmHg</span>
+                  </p>
+                  <StatusTag status={pressure} />
                 </div>
               </div>
-            </section>
-
-            <section>
-              <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-400">Live physiology</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {METRICS.map((m) => {
-                  const info = METRIC_INFO[m];
-                  const metric = state.metrics[m];
-                  const style = STATUS_STYLE[metric.status];
-                  return (
-                    <div key={m} className={`rounded-xl border p-4 ${style.box}`}>
-                      <p className="text-sm text-slate-300">{info.label}</p>
-                      <p className="mt-1 text-3xl font-semibold">
-                        {metric.value.toFixed(info.decimals)} <span className="text-base font-normal text-slate-400">{info.unit}</span>
-                      </p>
-                      <p className={`mt-2 text-sm font-medium ${style.text}`}>{style.label}</p>
-                      <p className="text-xs text-slate-400">
-                        {metric.basis === "personal" ? "Your usual range" : "Reference range"}: {metric.low.toFixed(info.decimals)} to{" "}
-                        {metric.high.toFixed(info.decimals)}
-                      </p>
-                    </div>
-                  );
-                })}
+              <div className="hud-note">
+                <Waveform bpm={state.metrics.hr.value} />
               </div>
-            </section>
+            </HudPanel>
 
-            <section className="grid gap-3 lg:grid-cols-2">
-              <Waveform bpm={state.metrics.hr.value} />
+            <HudPanel index="02" title="Recent trend" sub={`Last ${readings.length} readings / Live`}>
               <TrendChart readings={readings} state={state} />
-            </section>
+            </HudPanel>
 
-          </>
-        )}
+            <HudPanel index="03" title="Baseline comparison" sub="Marker = latest value / Band = range" grow>
+              {METRICS.map((m) => {
+                const info = METRIC_INFO[m];
+                const metric = state.metrics[m];
+                return (
+                  <div key={m} className="hud-gauge-row">
+                    <div className="hud-gauge-top">
+                      <span>{info.label}</span>
+                      <b>
+                        {metric.value.toFixed(info.decimals)} {info.unit}
+                      </b>
+                    </div>
+                    <div className="hud-gauge" aria-hidden="true">
+                      <div className="hud-gauge-band" />
+                      <div className={`hud-gauge-mark hud-${metric.status}`} style={{ left: `${gaugePosition(metric)}%` }} />
+                    </div>
+                    <div className="hud-gauge-top">
+                      <span className="hud-label">
+                        {metric.basis === "personal" ? "Usual" : "Reference"}: {metric.low.toFixed(info.decimals)} to {metric.high.toFixed(info.decimals)}
+                      </span>
+                      <StatusTag status={metric.status} />
+                    </div>
+                  </div>
+                );
+              })}
+            </HudPanel>
+          </div>
 
-        <section>
-          <h2 className="mb-3 text-sm uppercase tracking-wide text-slate-400">Recent alerts</h2>
-          {alerts.length === 0 ? (
-            <p className="text-sm text-slate-500">No alerts.</p>
-          ) : (
-            <ul className="space-y-2">
-              {alerts.map((alert) => (
-                <li key={alert.id} className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm">
-                  <span className="text-slate-400">{new Date(alert.ts).toLocaleString()}</span>
-                  <p className="mt-1 text-slate-200">{alert.message}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+          {/* Centre column: the 3D twin */}
+          <div className="hud-col hud-col-centre">
+            <HudPanel index="04" title="Human digital twin" sub="Interactive 3D model / Colours follow stored readings" right={<StatusTag status="within" label="Live model" />} grow>
+              <div className="hud-twin">
+                <TwinBody state={state} selected={region} onSelect={setRegion} />
+                <div className="hud-callouts">
+                  {CALLOUTS.map((c, i) => (
+                    <button
+                      key={c.region}
+                      onClick={() => setRegion(c.region)}
+                      className={`hud-callout hud-callout-${c.side}${c.region === region ? " hud-callout-on" : ""}`}
+                      style={{ top: c.top }}
+                    >
+                      <span className="hud-label">
+                        0{i + 1} / {REGION_LABEL[c.region]}
+                      </span>
+                      <span className="hud-callout-name">{REGION_LABEL[c.region]}</span>
+                      <span className="hud-callout-data">{calloutData(state, c.region)}</span>
+                      <StatusTag status={state.regions[c.region]} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="hud-legend">
+                <StatusTag status="within" />
+                <StatusTag status="watch" />
+                <StatusTag status="outside" />
+                <StatusTag status="no_data" />
+              </div>
+              <div className="hud-twin-foot">
+                <span className="hud-label">01 / Drag to rotate</span>
+                <span className="hud-label">02 / Scroll to zoom</span>
+                <span className="hud-label">03 / Click an organ</span>
+              </div>
+            </HudPanel>
+          </div>
 
-        <p className="text-xs text-slate-500">Educational prototype using synthetic data. Not a medical device and not for diagnosis.</p>
-      </div>
-    </main>
+          {/* Right column: details, alerts, overview */}
+          <div className="hud-col">
+            <HudPanel index="05" title="Region detail" sub="Stored data behind the selected region">
+              <RegionPanel state={state} selected={region} onSelect={setRegion} />
+            </HudPanel>
+
+            <HudPanel index="06" title="Alerts" sub="Information only / Not a diagnosis" right={<span className="hud-label">{alerts.length} recent</span>}>
+              {alerts.length === 0 ? (
+                <p className="hud-text hud-plain">No alerts.</p>
+              ) : (
+                alerts.map((alert) => (
+                  <div key={alert.id} className="hud-alert">
+                    <span className="hud-label">{new Date(alert.ts).toLocaleString()}</span>
+                    <br />
+                    {alert.message}
+                  </div>
+                ))
+              )}
+            </HudPanel>
+
+            <HudPanel index="07" title="Twin overview" sub="All six measurements at a glance" grow>
+              <div className="hud-overview">
+                <div className="hud-ring" style={{ background: `conic-gradient(#36e3d6 0 ${(withinCount / METRICS.length) * 100}%, #12404c 0)` }}>
+                  <div className="hud-ring-text">
+                    {withinCount}/{METRICS.length}
+                    <span className="hud-label">in range</span>
+                  </div>
+                </div>
+                <div className="hud-rows">
+                  {(["heart", "lungs", "body"] as Region[]).map((r) => (
+                    <div key={r} className="hud-row">
+                      <span>{REGION_LABEL[r]}</span>
+                      <StatusTag status={state.regions[r]} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="hud-note">
+                <div className="hud-gauge-top">
+                  <span className="hud-label">Personal baseline</span>
+                  <span className="hud-label hud-label-accent">
+                    {state.baselineEstablished ? "Established" : `${restingSoFar} of ${BASELINE_MIN_READINGS} resting readings`}
+                  </span>
+                </div>
+                <div className="hud-bar">
+                  <i style={{ width: `${state.baselineEstablished ? 100 : (restingSoFar / BASELINE_MIN_READINGS) * 100}%` }} />
+                </div>
+                <p className="hud-label hud-note">{state.baselineEstablished ? "Readings are compared with your own usual range" : "Until then, default reference ranges are used"}</p>
+              </div>
+            </HudPanel>
+          </div>
+        </div>
+      )}
+    </HudShell>
   );
 }

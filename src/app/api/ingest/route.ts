@@ -1,16 +1,17 @@
 // POST /api/ingest
 // The only way a reading enters the system. A browser (or, later, a real device)
 // sends one reading; this route checks who sent it, validates it, runs the twin
-// engine, and saves the reading, the new twin state and any alert together.
+// engine, and saves the reading, the new twin state, the day's summary and any
+// alert together.
 import { NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { adminDb } from "@/lib/firebase/admin";
+import { callerFromRequest } from "@/lib/api/auth";
 import { readingInput } from "@/lib/validation/reading";
 import { computeBaseline } from "@/lib/engine/baseline";
+import { addToDaily, dayKey, DailySummary } from "@/lib/engine/daily";
 import { updateTwin } from "@/lib/engine/twin";
 import { BASELINE_MIN_READINGS, BASELINE_WINDOW } from "@/lib/engine/config";
 import { Baseline, Reading, TwinState } from "@/lib/engine/types";
-
-
 
 function fail(status: number, error: string, details?: string[]) {
   return NextResponse.json({ ok: false, error, details }, { status });
@@ -18,16 +19,9 @@ function fail(status: number, error: string, details?: string[]) {
 
 export async function POST(request: Request) {
   // 1. Who is calling? The browser sends its Firebase ID token.
-  const header = request.headers.get("authorization") ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!token) return fail(401, "Sign in first.");
-
-  let uid: string;
-  try {
-    uid = (await adminAuth().verifyIdToken(token)).uid;
-  } catch {
-    return fail(401, "Your session is not valid. Sign in again.");
-  }
+  const caller = await callerFromRequest(request);
+  if ("error" in caller) return fail(401, caller.error);
+  const uid = caller.uid;
 
   // 2. Is the reading well formed?
   let body: unknown;
@@ -50,24 +44,27 @@ export async function POST(request: Request) {
     const patientSnap = await patientRef.get();
     if (!patientSnap.exists) return fail(403, "This account has no patient record.");
 
-    const stateRef = patientRef.collection("twin").doc("state");
-    const baselineRef = patientRef.collection("baseline").doc("current");
-    const readingRef = patientRef.collection("readings").doc();
-
     // The server sets the time, so a client cannot backdate a reading.
     const reading: Reading = { ...parsed.data, ts: Date.now() };
 
+    const stateRef = patientRef.collection("twin").doc("state");
+    const baselineRef = patientRef.collection("baseline").doc("current");
+    const readingRef = patientRef.collection("readings").doc();
+    const dailyRef = patientRef.collection("daily").doc(dayKey(reading.ts));
+
     // 4. Run the engine and save everything in one transaction, so the reading,
-    //    the twin state and the alert can never disagree with each other.
+    //    the twin state, the day's summary and the alert can never disagree.
     const result = await db.runTransaction(async (tx) => {
-      const [stateSnap, baselineSnap] = await Promise.all([tx.get(stateRef), tx.get(baselineRef)]);
+      const [stateSnap, baselineSnap, dailySnap] = await Promise.all([tx.get(stateRef), tx.get(baselineRef), tx.get(dailyRef)]);
       const previous = stateSnap.exists ? (stateSnap.data() as TwinState) : null;
       const baseline = baselineSnap.exists ? (baselineSnap.data() as Baseline) : null;
+      const daily = dailySnap.exists ? (dailySnap.data() as DailySummary) : null;
 
       const update = updateTwin(previous, reading, baseline);
 
       tx.set(readingRef, reading);
       tx.set(stateRef, update.state);
+      tx.set(dailyRef, addToDaily(daily, reading, update.state));
       for (const alert of update.alerts) {
         tx.set(patientRef.collection("alerts").doc(), alert);
       }

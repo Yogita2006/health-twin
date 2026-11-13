@@ -13,13 +13,13 @@ import { OrbitControls } from "@react-three/drei";
 import { Region, Status, TwinState } from "@/lib/engine/types";
 
 const STATUS_COLOR: Record<Status, string> = {
-  within: "#34d399",
-  watch: "#fbbf24",
-  outside: "#f87171",
-  no_data: "#94a3b8",
+  within: "#3ddc97",
+  watch: "#f5b942",
+  outside: "#ff6b6b",
+  no_data: "#6b8a93",
 };
 
-const SHELL = "#22d3ee";
+const SHELL = "#36e3d6";
 const HALF_PI = Math.PI / 2;
 
 type Vec3 = [number, number, number];
@@ -41,7 +41,7 @@ function ShellPart({ kind, args, position, rotation, scale }: { kind: "sphere" |
       </mesh>
       <mesh raycast={() => null}>
         {geometry()}
-        <meshBasicMaterial color={SHELL} wireframe transparent opacity={0.16} depthWrite={false} />
+        <meshBasicMaterial color={SHELL} wireframe transparent opacity={0.2} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -220,7 +220,7 @@ function Body({ state, selected, onSelect }: BodyProps) {
 
 export default function TwinBody({ state, selected, onSelect }: BodyProps) {
   return (
-    <div style={{ width: "100%", height: 520 }} role="img" aria-label="Interactive 3D body showing the status of each region">
+    <div className="hud-twin-canvas" role="img" aria-label="Interactive 3D body showing the status of each region">
       <Canvas camera={{ position: [0, 1.05, 2.9], fov: 40 }}>
         <ambientLight intensity={0.5} />
         <directionalLight position={[2, 3, 3]} intensity={1.1} />

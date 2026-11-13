@@ -4,13 +4,8 @@
 // range the latest reading was compared with.
 import { useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { HUD, SHORT_LABEL } from "@/components/hud/Hud";
 import { METRICS, METRIC_INFO, Metric, Reading, TwinState } from "@/lib/engine/types";
-
-const INK = "#e2e8f0"; // primary text
-const MUTED = "#94a3b8"; // axis and secondary text
-const GRID = "rgba(148, 163, 184, 0.15)";
-const SERIES = "#22d3ee";
-const BAND = "rgba(34, 211, 238, 0.10)";
 
 const clock = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
@@ -29,63 +24,53 @@ export default function TrendChart({ readings, state }: { readings: Reading[]; s
   const domain: [number, number] = [Number((lowest - pad).toFixed(1)), Number((highest + pad).toFixed(1))];
 
   return (
-    <div className="rounded-xl border border-cyan-500/20 bg-slate-900/60 p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-slate-300">
-          {info.label} ({info.unit}), last {data.length} readings
-        </p>
-        <div className="flex flex-wrap gap-1">
-          {METRICS.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMetric(m)}
-              className={`rounded-md border px-2.5 py-1 text-xs ${
-                m === metric ? "border-cyan-400 bg-cyan-400/15 text-cyan-100" : "border-slate-700 text-slate-300 hover:border-slate-500"
-              }`}
-            >
-              {METRIC_INFO[m].label}
-            </button>
-          ))}
-        </div>
+    <div>
+      <div className="hud-chips">
+        {METRICS.map((m) => (
+          <button key={m} onClick={() => setMetric(m)} className={m === metric ? "hud-chip hud-chip-on" : "hud-chip"}>
+            {SHORT_LABEL[m]}
+          </button>
+        ))}
       </div>
 
       {data.length < 2 ? (
-        <p className="py-10 text-center text-sm text-slate-500">Send at least two readings to see a trend.</p>
+        <p className="hud-empty">Send at least two readings to see a trend.</p>
       ) : (
-        <div style={{ width: "100%", height: 260 }}>
+        <div style={{ width: "100%", height: 210, marginTop: 10 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
-              <CartesianGrid stroke={GRID} vertical={false} />
-              {range && <ReferenceArea y1={range.low} y2={range.high} fill={BAND} stroke="none" ifOverflow="extendDomain" />}
+            <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+              <CartesianGrid stroke={HUD.grid} vertical={false} />
+              {range && <ReferenceArea y1={range.low} y2={range.high} fill={HUD.band} stroke="none" ifOverflow="extendDomain" />}
               <XAxis
                 dataKey="ts"
                 type="number"
                 scale="time"
                 domain={["dataMin", "dataMax"]}
                 tickFormatter={clock}
-                tick={{ fill: MUTED, fontSize: 12 }}
-                stroke={GRID}
+                tick={{ fill: HUD.muted, fontSize: 11 }}
+                stroke={HUD.line}
                 minTickGap={60}
               />
-              <YAxis domain={domain} tick={{ fill: MUTED, fontSize: 12 }} stroke={GRID} width={48} />
+              <YAxis domain={domain} tick={{ fill: HUD.muted, fontSize: 11 }} stroke={HUD.line} width={48} />
               <Tooltip
-                cursor={{ stroke: MUTED, strokeDasharray: "3 3" }}
-                contentStyle={{ background: "#0f172a", border: "1px solid rgba(34,211,238,0.3)", borderRadius: 8, color: INK }}
-                labelStyle={{ color: MUTED }}
-                itemStyle={{ color: INK }}
+                cursor={{ stroke: HUD.muted, strokeDasharray: "3 3" }}
+                contentStyle={{ background: HUD.tooltip, border: `1px solid ${HUD.line}`, borderRadius: 3, color: HUD.ink }}
+                labelStyle={{ color: HUD.muted }}
+                itemStyle={{ color: HUD.ink }}
                 labelFormatter={(label) => clock(Number(label))}
                 formatter={(value) => [`${Number(value).toFixed(info.decimals)} ${info.unit}`, info.label]}
               />
-              <Line type="monotone" dataKey="value" stroke={SERIES} strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
+              <Line type="monotone" dataKey="value" stroke={HUD.accent} strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="hud-label hud-note">
+        {info.label} ({info.unit}) /{" "}
         {range
-          ? `Shaded band: ${range.basis === "personal" ? "your usual range" : "the default reference range"}, ${range.low.toFixed(info.decimals)} to ${range.high.toFixed(info.decimals)} ${info.unit}.`
-          : "The shaded band appears once the twin has data."}
+          ? `Band = ${range.basis === "personal" ? "your usual range" : "default reference range"}, ${range.low.toFixed(info.decimals)} to ${range.high.toFixed(info.decimals)}`
+          : "Band appears once the twin has data"}
       </p>
     </div>
   );

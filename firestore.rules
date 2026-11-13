@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Healthcare Digital Twin: security rules, version 2 (adds readings, twin state, baseline, alerts).
+// Healthcare Digital Twin: security rules, version 3 (adds daily summaries).
 // Roles live in users/{uid}.role and are "patient", "doctor" or "admin".
 // These rules run on Google's servers and cannot be bypassed from the browser.
 
@@ -57,7 +57,7 @@ service cloud.firestore {
             && request.resource.data.assignedDoctorIds == resource.data.assignedDoctorIds);
       allow delete: if isAdmin();
 
-      // Health data: readings, twin state, baseline and alerts.
+      // Health data: readings, twin state, baseline, alerts and daily summaries.
       // Readable by the patient, assigned doctors and admins.
       // Not writable from any browser. Only the server (ingest API) writes here.
       match /readings/{readingId} {
@@ -73,6 +73,10 @@ service cloud.firestore {
         allow write: if false;
       }
       match /alerts/{alertId} {
+        allow read: if canReadPatient(patientId);
+        allow write: if false;
+      }
+      match /daily/{day} {
         allow read: if canReadPatient(patientId);
         allow write: if false;
       }
