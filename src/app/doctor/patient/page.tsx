@@ -19,7 +19,7 @@ import { bmiFrom, profileSummary } from "@/lib/patient";
 
 function PatientTwin() {
   const patientId = useSearchParams().get("id");
-  const { ready: allowed } = useRequireRole(["doctor", "admin"]);
+  const { role, ready: allowed } = useRequireRole(["doctor", "admin"]);
   const { record, ready: recordReady, denied } = usePatientRecord(allowed ? patientId : null);
   const { state, ready: stateReady } = useTwinState(allowed && record ? patientId : null);
   const { records: history, ready: historyReady } = useMedicalHistory(allowed && record ? patientId : null);
@@ -58,6 +58,11 @@ function PatientTwin() {
               <button onClick={() => setView("analytics")} className={view === "analytics" ? "hud-chip hud-chip-on" : "hud-chip"}>
                 Analytics
               </button>
+              {role === "doctor" && patientId && (
+                <Link href={`/doctor/cardiac?id=${encodeURIComponent(patientId)}`} className="hud-chip" style={{ textDecoration: "none" }}>
+                  Cardiac advisor
+                </Link>
+              )}
             </div>
           )}
           {record && <p className="hud-label hud-note">Read-only view / The patient controls who can see this / Not for diagnosis</p>}

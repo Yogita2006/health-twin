@@ -16,7 +16,7 @@ Vital signs are usually judged against population ranges at occasional visits. A
 | Role | Can do |
 | --- | --- |
 | Patient | See their own twin, send readings, keep a medical history, view analytics, share or stop sharing with a doctor |
-| Doctor | See the twin, history and analytics of patients who have shared with them (read only) |
+| Doctor | See the twin, history and analytics of patients who have shared with them (read only); use the cardiac advisor for those patients |
 | Admin | See all accounts, change roles, open any patient's twin (read only) |
 
 The doctor role is a demo role: no licence check is made. A doctor can read nothing until a patient shares access.
@@ -32,6 +32,7 @@ The doctor role is a demo role: no licence check is made. A doctor can read noth
 - Analytics over 7, 14 or 30 days
 - Virtual wearable that simulates a device, with scenarios per organ, plus manual entry
 - One-click synthetic sample data for new accounts
+- Cardiac advisor for doctors: a heart disease estimate from a trained model, rule-based suggestions to accept or reject, a what-if simulation, and saved sessions (see below)
 
 ## Architecture
 
@@ -60,6 +61,20 @@ Vercel serverless functions (Next.js API routes)
 
 Firebase Storage and Cloud Functions are not used. Both need a billing plan; the server-side work runs in Vercel functions instead.
 
+## Cardiac advisor
+
+A doctor-only page for patients who share with that doctor. It is an experimental decision-support and educational tool. It gives estimates, not diagnoses, and it does not prescribe.
+
+| Step | What runs | Source |
+| --- | --- | --- |
+| Prediction | Logistic regression estimating heart disease on angiography | Cleveland heart disease data, 297 patients ([Kaggle](https://www.kaggle.com/datasets/cherngs/heart-disease-cleveland-uci), originally UCI). Cross-validated AUC 0.88 +/- 0.04; 50 of 60 test patients classified correctly |
+| Suggestions | Fixed rules with textbook cut-offs, each shown with its reason | `src/lib/cardiac/suggestions.ts` |
+| What-if simulation | The doctor sets assumed changes to the readings; a second logistic regression compares ten-year coronary heart disease risk before and after | Framingham Heart Study teaching data, 4,171 people ([Kaggle](https://www.kaggle.com/datasets/aasheesh200/framingham-heart-study-dataset)). Test AUC 0.72 |
+
+Both models are trained by the scripts in `ml/`. The trained weights are stored as JSON in `src/lib/ml/` and applied by a serverless function, which gives the same answers as the Python models.
+
+What the simulation is not: a prediction of how a patient responds to treatment. Neither dataset records outcomes after treatment. The assumed changes are set by the doctor, with starting values rounded from published trial averages, and the page says so next to every result.
+
 ## Security
 
 - Every API route verifies the Firebase ID token on the server.
@@ -69,6 +84,7 @@ Firebase Storage and Cloud Functions are not used. Both need a billing plan; the
 - All input is validated on the server.
 - Secrets are environment variables and are not in this repository.
 - Each patient is limited to 600 readings a day.
+- The cardiac advisor runs only for a doctor the patient shares with. Its saved sessions are not readable from any browser; they are reached only through the API, which repeats the check.
 
 ## Tech stack
 
@@ -78,10 +94,13 @@ Next.js 16, React 19, TypeScript, three.js, Recharts, zod, Firebase (Authenticat
 
 ```
 src/app/            pages and API routes (api/*)
-src/components/     interface: twin3d, panels, history, analytics, hud
+src/components/     interface: twin3d, panels, history, analytics, cardiac, hud
 src/hooks/          live Firestore listeners
 src/lib/engine/     twin engine: baseline, status, alerts, daily summaries
 src/lib/validation/ zod schemas used by the API
+src/lib/ml/         trained model weights (JSON) and the code that applies them
+src/lib/cardiac/    suggestion rules and the what-if simulation
+ml/                 Python scripts that train the two models
 firestore.rules     Firestore security rules
 ```
 
@@ -105,14 +124,18 @@ firestore.rules     Firestore security rules
 - Readings are simulated; no real device is connected.
 - Doctor accounts are not verified.
 - The body model is the same for every patient; only its colours and motion change.
-- No prediction or what-if simulation.
+- The cardiac models are small and old: 297 patients from one hospital (1988) and a teaching subset of the Framingham study. They have not been validated for clinical use.
+- The what-if simulation rests on assumed changes. It cannot predict a patient's response to treatment.
+- Patients cannot see cardiac advisor sessions in this version.
 - Free-tier quotas limit daily database writes.
 - One database region; uptime has not been measured.
 
 ## Future work
 
-Real wearable input, verified clinician accounts, what-if simulation, file uploads for reports, automated tests.
+Real wearable input, verified clinician accounts, a patient view of reviewed plans, file uploads for reports, automated tests.
 
 ## Credits
 
 3D anatomy: BodyParts3D, (c) The Database Center for Life Science, licensed under CC Attribution-Share Alike 2.1 Japan. See `public/models/CREDITS.txt`.
+
+Data for the cardiac models: Cleveland heart disease data (UCI Machine Learning Repository; Detrano et al.) and the Framingham Heart Study teaching dataset, both as published on Kaggle.

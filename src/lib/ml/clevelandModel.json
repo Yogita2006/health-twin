@@ -1,0 +1,130 @@
+{
+  "name": "Logistic regression, Cleveland heart disease data",
+  "dataset": "Heart Disease Cleveland UCI (Kaggle, cherngs); original source UCI Machine Learning Repository",
+  "datasetUrl": "https://www.kaggle.com/datasets/cherngs/heart-disease-cleveland-uci",
+  "target": "Heart disease found on coronary angiography (at least one major vessel narrowed by more than 50%)",
+  "columns": [
+    "age",
+    "sex",
+    "trestbps",
+    "chol",
+    "fbs",
+    "thalach",
+    "exang",
+    "oldpeak",
+    "ca",
+    "restecg_abnormal",
+    "cp_1",
+    "cp_2",
+    "cp_3",
+    "slope_1",
+    "slope_2",
+    "thal_1",
+    "thal_2"
+  ],
+  "mean": [
+    54.772152,
+    0.675105,
+    132.270042,
+    249.409283,
+    0.168776,
+    149.843882,
+    0.345992,
+    1.061603,
+    0.679325,
+    0.49789,
+    0.151899,
+    0.2827,
+    0.489451,
+    0.451477,
+    0.067511,
+    0.067511,
+    0.400844
+  ],
+  "scale": [
+    9.01328,
+    0.468335,
+    17.878011,
+    53.050064,
+    0.374554,
+    22.350226,
+    0.47569,
+    1.177103,
+    0.917777,
+    0.499996,
+    0.358923,
+    0.450312,
+    0.499889,
+    0.49764,
+    0.250904,
+    0.250904,
+    0.490069
+  ],
+  "coef": [
+    0.00128,
+    0.553021,
+    0.397818,
+    0.239538,
+    -0.172614,
+    -0.213614,
+    0.249136,
+    0.445858,
+    0.925358,
+    0.27672,
+    0.235621,
+    -0.151129,
+    0.804316,
+    0.508747,
+    0.251747,
+    0.038138,
+    0.765847
+  ],
+  "intercept": -0.109959,
+  "ranges": {
+    "age": [
+      29.0,
+      77.0
+    ],
+    "trestbps": [
+      94.0,
+      200.0
+    ],
+    "chol": [
+      126.0,
+      564.0
+    ],
+    "thalach": [
+      71.0,
+      202.0
+    ],
+    "oldpeak": [
+      0.0,
+      6.2
+    ]
+  },
+  "rows": {
+    "inFile": 303,
+    "used": 297,
+    "train": 237,
+    "test": 60,
+    "withDisease": 137
+  },
+  "metrics": {
+    "testAuc": 0.95,
+    "cvAucMean": 0.884,
+    "cvAucSd": 0.042,
+    "testBrier": 0.0946,
+    "testAccuracy": 0.833,
+    "testSensitivity": 0.786,
+    "testSpecificity": 0.875,
+    "testCounts": {
+      "tp": 22,
+      "fp": 4,
+      "fn": 6,
+      "tn": 28
+    },
+    "forestCvAucMean": 0.889,
+    "forestCvAucSd": 0.036,
+    "forestTestAuc": 0.932
+  }
+}

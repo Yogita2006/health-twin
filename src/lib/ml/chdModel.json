@@ -1,0 +1,88 @@
+{
+  "name": "Ten-year coronary heart disease risk (logistic regression)",
+  "dataset": "Framingham Heart Study teaching subset (Kaggle: framingham.csv)",
+  "datasetUrl": "https://www.kaggle.com/datasets/aasheesh200/framingham-heart-study-dataset",
+  "target": "TenYearCHD",
+  "features": [
+    "age",
+    "male",
+    "sysBP",
+    "totChol",
+    "BMI",
+    "heartRate",
+    "currentSmoker"
+  ],
+  "mean": [
+    49.584832,
+    0.427458,
+    132.260042,
+    236.452338,
+    25.771547,
+    75.745504,
+    0.490408
+  ],
+  "scale": [
+    8.594411,
+    0.49471,
+    21.953062,
+    44.696057,
+    4.037096,
+    12.136352,
+    0.499908
+  ],
+  "coef": [
+    0.590968,
+    0.338437,
+    0.321675,
+    0.102281,
+    0.074159,
+    0.034921,
+    0.193787
+  ],
+  "intercept": -1.992335,
+  "range": {
+    "age": [
+      35.0,
+      67.0
+    ],
+    "male": [
+      0.0,
+      1.0
+    ],
+    "sysBP": [
+      96.5,
+      200.0
+    ],
+    "totChol": [
+      153.3,
+      352.7
+    ],
+    "BMI": [
+      18.1,
+      38.9
+    ],
+    "heartRate": [
+      52.0,
+      110.0
+    ],
+    "currentSmoker": [
+      0.0,
+      1.0
+    ]
+  },
+  "rows": {
+    "inFile": 4240,
+    "used": 4171,
+    "train": 3336,
+    "test": 835
+  },
+  "metrics": {
+    "testAuc": 0.724,
+    "cvAucMean": 0.725,
+    "cvAucSd": 0.019,
+    "testBrier": 0.1162,
+    "testObservedRate": 0.1497,
+    "testMeanPredicted": 0.1513
+  },
+  "seed": 42
+}

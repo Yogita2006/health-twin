@@ -1,0 +1,317 @@
+/* Styles for the Cardiac advisor only. Colours come from the theme variables
+   in hud.css, so this page follows the same look as the rest of the app. */
+
+/* Workflow strip */
+.cx-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cx-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--hud-line);
+  border-radius: 3px;
+  background: var(--hud-panel);
+  font-family: var(--hud-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hud-muted);
+}
+.cx-step span {
+  color: var(--hud-faint);
+}
+.cx-step small {
+  font-size: 9px;
+  color: var(--hud-ok);
+}
+.cx-step-done {
+  border-color: var(--hud-accent-dim);
+  color: var(--hud-ink);
+}
+.cx-flat {
+  margin: 0;
+}
+
+/* Form */
+.cx-grid {
+  margin-top: 10px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 560px) {
+  .cx-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1000px) {
+  .cx-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.cx-subhead {
+  margin: 20px 0 0;
+}
+
+/* Blocks inside a panel */
+.cx-block {
+  margin-top: 18px;
+}
+.cx-block-first:first-of-type {
+  margin-top: 0;
+}
+.cx-plain-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--hud-line);
+  font-size: 13px;
+  color: var(--hud-muted);
+}
+.cx-block .cx-plain-row:first-of-type {
+  margin-top: 8px;
+}
+.cx-plain-row b {
+  margin-left: 6px;
+  font-weight: 600;
+  color: var(--hud-ink);
+}
+.cx-plain-row > span:last-child {
+  color: var(--hud-ink);
+  text-align: right;
+}
+
+/* Estimate and its band */
+.cx-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+.cx-gauge {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin-top: 8px;
+}
+.cx-gauge i {
+  flex: 1;
+  border-radius: 2px;
+  opacity: 0.45;
+}
+.cx-gauge-low {
+  background: var(--hud-ok);
+}
+.cx-gauge-mid {
+  background: var(--hud-watch);
+}
+.cx-gauge-high {
+  background: var(--hud-out);
+}
+.cx-gauge b {
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 18px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--hud-ink);
+  box-shadow: 0 0 0 2px var(--hud-bg);
+}
+.cx-gauge-scale {
+  display: flex;
+  margin-top: 6px;
+}
+.cx-gauge-scale span {
+  flex: 1;
+  text-align: center;
+}
+
+/* What moved the estimate */
+.cx-factor {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.1fr) minmax(90px, 1fr) 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid var(--hud-line);
+  font-size: 13px;
+}
+.cx-block .cx-factor:first-of-type {
+  margin-top: 8px;
+}
+.cx-factor-name {
+  color: var(--hud-ink);
+}
+.cx-factor-name small {
+  display: block;
+  font-size: 12px;
+  color: var(--hud-muted);
+}
+.cx-factor-track {
+  position: relative;
+  height: 10px;
+  border-radius: 2px;
+  background: rgba(18, 64, 76, 0.5);
+}
+.cx-factor-track::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 50%;
+  width: 1px;
+  background: var(--hud-line-strong);
+}
+.cx-factor-track i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+}
+.cx-raises {
+  background: var(--hud-watch);
+}
+.cx-lowers {
+  background: var(--hud-accent-dim);
+}
+.cx-factor-word {
+  font-family: var(--hud-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: right;
+}
+.cx-raises-text {
+  color: var(--hud-watch);
+}
+.cx-lowers-text {
+  color: var(--hud-accent);
+}
+
+/* Suggestions and saved sessions */
+.cx-suggestion,
+.cx-session {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--hud-line);
+  border-radius: 3px;
+  background: var(--hud-inset);
+}
+.cx-suggestion-main,
+.cx-session-main {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.cx-suggestion-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--hud-ink);
+}
+.cx-suggestion-reason {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+.cx-chip-reject {
+  border-color: var(--hud-out);
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--hud-out);
+}
+.cx-source {
+  margin: 6px 0 0;
+}
+
+/* Before and after */
+.cx-risk {
+  margin-top: 10px;
+}
+.cx-risk-row {
+  display: grid;
+  grid-template-columns: 84px 1fr 62px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--hud-muted);
+}
+.cx-risk-row b {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--hud-ink);
+}
+.cx-track {
+  display: block;
+  height: 14px;
+  border-radius: 2px;
+  background: rgba(18, 64, 76, 0.5);
+  overflow: hidden;
+}
+.cx-track i {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+}
+.cx-track-small {
+  height: 5px;
+  margin-top: 5px;
+}
+.cx-base {
+  background: var(--hud-faint);
+}
+.cx-next {
+  background: var(--hud-accent);
+}
+.cx-scale {
+  margin: 2px 0 0;
+}
+.cx-compare {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 0;
+  border-top: 1px solid var(--hud-line);
+  font-size: 13px;
+  color: var(--hud-ink);
+}
+.cx-compare > span:first-child {
+  color: var(--hud-muted);
+}
+.cx-compare > span:last-child {
+  text-align: right;
+}
+.cx-compare-head {
+  margin-top: 8px;
+  border-top: 0;
+  padding-bottom: 4px;
+}
+.cx-compare-head > span:first-child {
+  color: inherit;
+}
+.cx-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.cx-list li {
+  margin-top: 6px;
+}
+
+/* Notes under the parameter form */
+.cx-grid + .hud-note {
+  margin-top: 14px;
+}
