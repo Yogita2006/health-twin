@@ -1,11 +1,9 @@
 "use client";
 
 // Everything about the body region selected on the twin, in one panel:
-// a picture of it (a turning 3D close-up, or an illustrative cross-section)
+// a turning 3D close-up of it
 // and the stored data behind it.
-import { useState } from "react";
 import { StatusTag } from "@/components/hud/Hud";
-import ImagingPanel from "@/components/panels/ImagingPanel";
 import OrganView from "@/components/twin3d/OrganView";
 import { REGION_METRICS } from "@/lib/engine/config";
 import { HistoryRecord, TYPE_LABEL, statusWord } from "@/lib/history";
@@ -26,7 +24,6 @@ const NO_DATA_NOTE: Partial<Record<Region, string>> = {
   skeleton: "No skeletal data is collected in this prototype, so this region shows no status.",
 };
 
-type Picture = "model" | "section";
 
 interface Props {
   state: TwinState | null;
@@ -38,7 +35,6 @@ interface Props {
 export default function RegionPanel({ state, selected, onSelect, history }: Props) {
   // Medical history records the patient linked to this part of the body.
   const related = (history ?? []).filter((record) => record.region === selected);
-  const [picture, setPicture] = useState<Picture>("model");
   const status: Status = state ? state.regions[selected] : "no_data";
   const metrics = REGION_METRICS[selected];
 
@@ -59,17 +55,9 @@ export default function RegionPanel({ state, selected, onSelect, history }: Prop
           </h3>
           <StatusTag status={status} />
         </div>
-        <div className="hud-chips">
-          <button onClick={() => setPicture("model")} className={picture === "model" ? "hud-chip hud-chip-on" : "hud-chip"}>
-            3D model
-          </button>
-          <button onClick={() => setPicture("section")} className={picture === "section" ? "hud-chip hud-chip-on" : "hud-chip"}>
-            Cross-section
-          </button>
-        </div>
       </div>
 
-      {picture === "model" ? <OrganView state={state} selected={selected} /> : <ImagingPanel state={state} selected={selected} />}
+      <OrganView state={state} selected={selected} />
 
       {metrics.length === 0 && <p className="hud-text hud-note">{NO_DATA_NOTE[selected]}</p>}
 

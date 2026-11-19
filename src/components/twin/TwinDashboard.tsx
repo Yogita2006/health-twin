@@ -11,7 +11,6 @@ import { HudPanel, SHORT_LABEL, StatusTag } from "@/components/hud/Hud";
 import Waveform from "@/components/panels/Waveform";
 import TrendChart from "@/components/panels/TrendChart";
 import RegionPanel, { REGION_LABEL } from "@/components/panels/RegionPanel";
-import GenomePanel from "@/components/panels/GenomePanel";
 import TwinBody from "@/components/twin3d/TwinBody";
 import { BASELINE_MIN_READINGS } from "@/lib/engine/config";
 import { METRICS, METRIC_INFO, Metric, MetricState, Region, Status, TwinState } from "@/lib/engine/types";
@@ -161,18 +160,15 @@ export default function TwinDashboard({ patientId, state }: { patientId: string;
           </div>
         </HudPanel>
 
-        <HudPanel index="05" title="Genomic sequence" sub="Synthetic demo / Not genetic data">
-          <GenomePanel seed={patientId} />
-        </HudPanel>
       </div>
 
       {/* Right column: details, alerts, overview */}
       <div className="hud-col">
-        <HudPanel index="06" title="Region detail" sub="3D close-up or cross-section / Stored data" grow>
+        <HudPanel index="05" title="Region detail" sub="3D close-up / Stored data" grow>
           <RegionPanel state={state} selected={region} onSelect={setRegion} history={history} />
         </HudPanel>
 
-        <HudPanel index="07" title="Alerts" sub="Information only / Not a diagnosis" right={<span className="hud-label">{alerts.length} recent</span>}>
+        <HudPanel index="06" title="Alerts" sub="Information only / Not a diagnosis" right={<span className="hud-label">{alerts.length} recent</span>}>
           {alerts.length === 0 ? (
             <p className="hud-text hud-plain">No alerts.</p>
           ) : (
@@ -186,7 +182,7 @@ export default function TwinDashboard({ patientId, state }: { patientId: string;
           )}
         </HudPanel>
 
-        <HudPanel index="08" title="Twin overview" sub="All six measurements at a glance">
+        <HudPanel index="07" title="Twin overview" sub="All six measurements at a glance">
           <div className="hud-overview">
             <div className="hud-ring" style={{ background: `conic-gradient(#36e3d6 0 ${(withinCount / METRICS.length) * 100}%, #12404c 0)` }}>
               <div className="hud-ring-text">
