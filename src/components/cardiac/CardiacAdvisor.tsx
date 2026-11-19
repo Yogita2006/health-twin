@@ -6,18 +6,19 @@
 //   1. Parameters   the doctor reviews or enters the patient's cardiac values
 //   2. Prediction   a model trained on the Cleveland data estimates heart disease
 //   3. Suggestions  fixed rules list options; the doctor accepts or rejects each
-//   4. Simulation   the doctor picks an intervention and the assumed changes;
-//                   a second model compares ten-year risk before and after
+//   4. Simulation   the assumed changes follow the accepted suggestions (or an
+//                   intervention the doctor picks); a second model compares
+//                   ten-year risk before and after, and redraws by itself
 //   5. Plan         the doctor adds notes and saves the reviewed session
 //
 // Every calculation happens on the server (/api/cardiac). This file only
 // collects input and shows results. Nothing here diagnoses or prescribes.
 import "./cardiac.css";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { User } from "firebase/auth";
 import { HudPanel } from "@/components/hud/Hud";
 import { ApiResult, apiError, callApi } from "@/lib/api/client";
-import { startingAssumptions } from "@/lib/cardiac/assumptions";
+import { effectsOf, startingAssumptions } from "@/lib/cardiac/assumptions";
 import { Assessment, Assumptions, BAND_LABEL, CHOICES, CardiacInputs, CardiacSession, Intervention, ModelCard, Review, Simulation, Suggestion, interventionLabel } from "@/lib/cardiac/types";
 import { PatientRecord, ageFrom, bmiFrom } from "@/lib/patient";
 import { TwinState } from "@/lib/engine/types";
@@ -66,7 +67,10 @@ const EXAMPLE_TESTS: Partial<Form> = { chol: "250", fbs: "0", cp: "3", restecg: 
 const EXAMPLE_IF_EMPTY: Partial<Form> = { age: "52", sex: "1", trestbps: "150", restingHr: "100", bmi: "27.5", smoker: "1" };
 
 const EMPTY_FORM = Object.fromEntries(ALL_FIELDS.map((field) => [field.key, ""])) as Form;
-const FIRST_INTERVENTION: Intervention = { kind: "lifestyle", med: "bp" };
+const FIRST_INTERVENTION: Intervention = { kind: "accepted", med: "bp" };
+const SIMULATE_DELAY_MS = 350; // wait for typing to pause before asking the server
+
+const acceptedIds = (reviews: Record<string, Review>) => Object.keys(reviews).filter((id) => reviews[id] === "accepted");
 
 // What is already known about the patient: profile and latest twin reading.
 function initialForm(record: PatientRecord, state: TwinState | null): Form {
@@ -141,7 +145,10 @@ export default function CardiacAdvisor({ user, patientId, record, state }: { use
   const [sessions, setSessions] = useState<CardiacSession[] | null>(null);
   const [models, setModels] = useState<ListAnswer["models"] | null>(null);
   const [opened, setOpened] = useState<CardiacSession | null>(null);
-  const [busy, setBusy] = useState<"" | "assess" | "simulate" | "save">("");
+  const [busy, setBusy] = useState<"" | "assess" | "save">("");
+  const [simulating, setSimulating] = useState(false);
+  const simulationNo = useRef(0); // so a slow, older answer never replaces a newer one
+  const inFlight = useRef(0); // simulation requests that have not answered yet
   const [error, setError] = useState<{ step: "assess" | "simulate" | "save" | "list"; text: string } | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -160,6 +167,30 @@ export default function CardiacAdvisor({ user, patientId, record, state }: { use
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
+
+  // The simulation runs by itself: whenever the parameters or the assumed
+  // changes are different, the server is asked again after a short pause.
+  useEffect(() => {
+    const mine = ++simulationNo.current; // any answer still on its way is now out of date
+    const assumed = toAssumptions(assumptions);
+    if (!inputs || !assumed) return;
+    const timer = setTimeout(async () => {
+      inFlight.current += 1;
+      setSimulating(true);
+      const answer = await callApi(user, "POST", "/api/cardiac", { action: "simulate", patientId, inputs, assumptions: assumed });
+      inFlight.current -= 1;
+      setSimulating(inFlight.current > 0);
+      if (mine !== simulationNo.current) return;
+      if (answer.ok) {
+        setSimulation((answer as SimulateAnswer).simulation);
+        setError((current) => (current?.step === "simulate" ? null : current));
+      } else {
+        setSimulation(null);
+        setError({ step: "simulate", text: apiError(answer) });
+      }
+    }, SIMULATE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [user, patientId, inputs, assumptions]);
 
   // Any change to the parameters makes the results below out of date, so they are cleared.
   function clearResults() {
@@ -205,49 +236,35 @@ export default function CardiacAdvisor({ user, patientId, record, state }: { use
       setInputs(values);
       setAssessment(result.assessment);
       setSuggestions(result.suggestions);
-      setAssumptions(toAssumptionForm(startingAssumptions(intervention, values.smoker)));
+      setAssumptions(toAssumptionForm(startingAssumptions(intervention, values.smoker, [])));
     } else {
       setError({ step: "assess", text: apiError(answer) });
     }
     setBusy("");
   }
 
+  // Accepting or rejecting a suggestion. While the simulation follows the
+  // accepted suggestions, its assumed changes are rebuilt from them at once.
   function review(id: string, value: Review) {
-    setReviews((current) => {
-      const next = { ...current };
-      if (next[id] === value) delete next[id];
-      else next[id] = value;
-      return next;
-    });
+    const next = { ...reviews };
+    if (next[id] === value) delete next[id];
+    else next[id] = value;
+    setReviews(next);
+    if (intervention.kind === "accepted" && inputs) {
+      setAssumptions(toAssumptionForm(startingAssumptions(intervention, inputs.smoker, acceptedIds(next))));
+    }
     setSaved(false);
   }
 
   function changeIntervention(next: Intervention) {
     setIntervention(next);
-    setAssumptions(toAssumptionForm(startingAssumptions(next, inputs?.smoker ?? 0)));
-    setSimulation(null);
+    setAssumptions(toAssumptionForm(startingAssumptions(next, inputs?.smoker ?? 0, acceptedIds(reviews))));
     setSaved(false);
   }
 
   function changeAssumptions(next: AssumptionForm) {
     setAssumptions(next);
-    setSimulation(null);
     setSaved(false);
-  }
-
-  async function runSimulation() {
-    const assumed = toAssumptions(assumptions);
-    if (!inputs || !assumed) {
-      setError({ step: "simulate", text: "Fill in every assumed change. Use 0 for no change." });
-      return;
-    }
-    setBusy("simulate");
-    setError(null);
-    setSaved(false);
-    const answer = await callApi(user, "POST", "/api/cardiac", { action: "simulate", patientId, inputs, assumptions: assumed });
-    if (answer.ok) setSimulation((answer as SimulateAnswer).simulation);
-    else setError({ step: "simulate", text: apiError(answer) });
-    setBusy("");
   }
 
   async function savePlan() {
@@ -364,14 +381,13 @@ export default function CardiacAdvisor({ user, patientId, record, state }: { use
           smoker={inputs?.smoker === 1}
           intervention={intervention}
           assumptions={assumptions}
-          busy={busy === "simulate"}
-          error={error?.step === "simulate" ? error.text : ""}
+          acceptedEffects={effectsOf(acceptedIds(reviews)).map((effect) => effect.label)}
+          error={error?.step === "simulate" ? error.text : toAssumptions(assumptions) ? "" : "Fill in every assumed change. Use 0 for no change."}
           onIntervention={changeIntervention}
           onAssumption={changeAssumptions}
           onReset={() => changeIntervention(intervention)}
-          onRun={runSimulation}
         />
-        <WhatIfResult simulation={simulation} intervention={intervention} card={models?.whatIf ?? null} />
+        <WhatIfResult simulation={simulation} intervention={intervention} updating={simulating} card={models?.whatIf ?? null} />
       </div>
 
       <HudPanel index="06" title="Reviewed plan" sub="The doctor's decisions and notes / Saved under this patient">
@@ -392,7 +408,7 @@ export default function CardiacAdvisor({ user, patientId, record, state }: { use
             </div>
             <div className="cx-plain-row">
               <span>Intervention explored</span>
-              <span>{simulation ? interventionLabel(intervention) : "Not simulated yet"}</span>
+              <span>{interventionLabel(intervention)}</span>
             </div>
             {simulation && (
               <div className="cx-plain-row">
@@ -417,11 +433,10 @@ export default function CardiacAdvisor({ user, patientId, record, state }: { use
             {error?.step === "save" && <p className="hud-error">{error.text}</p>}
             {saved && <p className="hud-success">Session saved. It is listed below.</p>}
             <div className="hud-actions">
-              <button type="button" onClick={savePlan} disabled={!simulation || busy !== "" || saved} className="hud-btn hud-btn-solid hud-btn-large">
+              <button type="button" onClick={savePlan} disabled={!simulation || simulating || busy !== "" || saved} className="hud-btn hud-btn-solid hud-btn-large">
                 {busy === "save" ? "Saving" : "Save reviewed plan"}
               </button>
             </div>
-            {!simulation && <p className="hud-label hud-note">Run the simulation before saving</p>}
             <p className="hud-label hud-note">Estimates and decision support only / Every clinical decision is the doctor's / Nothing here prescribes</p>
           </div>
         )}

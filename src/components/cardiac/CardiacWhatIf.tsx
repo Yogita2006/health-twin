@@ -1,15 +1,17 @@
 "use client";
 
 // Step 4 of the Cardiac advisor: the what-if simulation.
-// The doctor picks an intervention and sets the changes they assume it would
-// bring. A second model then compares ten-year risk for the readings before
-// and after. It is an illustration with stated assumptions, not a prediction
-// of how this patient would respond.
-import { FormEvent } from "react";
-import { HudPanel } from "@/components/hud/Hud";
+// The assumed changes follow the suggestions the doctor accepted, or another
+// intervention the doctor picks, and every value can be edited. A second model
+// then compares ten-year risk for the readings before and after, and the
+// result redraws by itself whenever anything changes. It is an illustration
+// with stated assumptions, not a prediction of how this patient would respond.
+import { HudPanel, StatusTag } from "@/components/hud/Hud";
 import { LIMITS, SOURCES } from "@/lib/cardiac/assumptions";
 import { Intervention, InterventionKind, KIND_LABEL, MED_LABEL, MedCategory, ModelCard, Simulation, interventionLabel } from "@/lib/cardiac/types";
+import { Status } from "@/lib/engine/types";
 import { ModelRows } from "./CardiacResults";
+import HeartTwin from "./HeartTwin";
 
 // The assumption fields as typed, before they are turned into numbers.
 export interface AssumptionForm {
@@ -20,7 +22,7 @@ export interface AssumptionForm {
   stopSmoking: boolean;
 }
 
-const KINDS: InterventionKind[] = ["lifestyle", "medication", "combination", "referral"];
+const KINDS: InterventionKind[] = ["accepted", "lifestyle", "medication", "combination", "referral"];
 const MEDS: MedCategory[] = ["bp", "lipid", "both"];
 
 const CHANGE_FIELDS: { key: "sysChange" | "cholChangePct" | "hrChange" | "bmiChange"; label: string }[] = [
@@ -35,28 +37,22 @@ interface ControlsProps {
   smoker: boolean;
   intervention: Intervention;
   assumptions: AssumptionForm;
-  busy: boolean;
+  acceptedEffects: string[]; // what the accepted suggestions add, in words
   error: string;
   onIntervention: (intervention: Intervention) => void;
   onAssumption: (assumptions: AssumptionForm) => void;
   onReset: () => void;
-  onRun: () => void;
 }
 
-export function WhatIfControls({ enabled, smoker, intervention, assumptions, busy, error, onIntervention, onAssumption, onReset, onRun }: ControlsProps) {
+export function WhatIfControls({ enabled, smoker, intervention, assumptions, acceptedEffects, error, onIntervention, onAssumption, onReset }: ControlsProps) {
   const usesMedicine = intervention.kind === "medication" || intervention.kind === "combination";
 
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    onRun();
-  }
-
   return (
-    <HudPanel index="04" title="What-if simulation" sub="Choose an intervention / Set the assumed changes">
+    <HudPanel index="04" title="What-if simulation" sub="Follows the accepted suggestions / Updates by itself">
       {!enabled && <p className="hud-empty">Run the prediction first.</p>}
 
       {enabled && (
-        <form onSubmit={submit}>
+        <form onSubmit={(e) => e.preventDefault()}>
           <div className="hud-form-grid">
             <label className="hud-field">
               <span className="hud-label">Hypothetical intervention</span>
@@ -81,6 +77,18 @@ export function WhatIfControls({ enabled, smoker, intervention, assumptions, bus
               </label>
             )}
           </div>
+
+          {intervention.kind === "accepted" && (
+            <div className="cx-block">
+              <p className="hud-label">Built from the suggestions you accepted</p>
+              {acceptedEffects.length === 0 && <p className="hud-text cx-source">Nothing accepted so far changes a reading. Accept suggestions in panel 03 and the comparison updates.</p>}
+              {acceptedEffects.map((effect) => (
+                <p key={effect} className="hud-text cx-source">
+                  {effect}
+                </p>
+              ))}
+            </div>
+          )}
 
           <p className="hud-label cx-subhead">Assumed changes / Edit to your clinical judgement</p>
           <div className="hud-form-grid">
@@ -113,9 +121,6 @@ export function WhatIfControls({ enabled, smoker, intervention, assumptions, bus
           {error && <p className="hud-error">{error}</p>}
 
           <div className="hud-actions">
-            <button type="submit" disabled={busy} className="hud-btn hud-btn-solid hud-btn-large">
-              {busy ? "Running" : "Run simulation"}
-            </button>
             <button type="button" onClick={onReset} className="hud-btn hud-btn-quiet">
               Reset starting values
             </button>
@@ -143,11 +148,20 @@ function signed(value: number, unit: string): string {
   return `${value > 0 ? "+" : "-"}${Math.abs(value).toFixed(1).replace(/\.0$/, "")}${unit}`;
 }
 
-export function WhatIfResult({ simulation, intervention, card }: { simulation: Simulation | null; intervention: Intervention; card: ModelCard | null }) {
+// Display bands for the ten-year estimate, using the widely quoted 10% and 20%
+// marks. They colour the 3D hearts. They are not a clinical classification of
+// this model's output.
+function tenYearBand(risk: number): { status: Status; label: string } {
+  if (risk >= 0.2) return { status: "outside", label: "20% or above" };
+  if (risk >= 0.1) return { status: "watch", label: "10% to 20%" };
+  return { status: "within", label: "Under 10%" };
+}
+
+export function WhatIfResult({ simulation, intervention, updating, card }: { simulation: Simulation | null; intervention: Intervention; updating: boolean; card: ModelCard | null }) {
   if (!simulation) {
     return (
       <HudPanel index="05" title="Before and after" sub="Estimated ten-year coronary heart disease risk">
-        <p className="hud-empty">Run the simulation to compare the baseline with the assumed changes.</p>
+        <p className="hud-empty">{updating ? "Calculating..." : "The comparison appears after the prediction."}</p>
       </HudPanel>
     );
   }
@@ -164,10 +178,29 @@ export function WhatIfResult({ simulation, intervention, card }: { simulation: S
     { label: "BMI", unit: "", base: before.params.bmi, next: after.params.bmi },
   ];
   const smokingChanged = before.params.smoker !== after.params.smoker;
+  const twins = [
+    { name: "Baseline", side: before, band: tenYearBand(before.risk) },
+    { name: "Simulated", side: after, band: tenYearBand(after.risk) },
+  ];
 
   return (
-    <HudPanel index="05" title="Before and after" sub="Estimated ten-year coronary heart disease risk">
+    <HudPanel index="05" title="Before and after" sub="Estimated ten-year coronary heart disease risk" right={updating ? <span className="hud-label hud-label-accent">Updating</span> : undefined}>
       <p className="hud-label">{interventionLabel(intervention)}</p>
+
+      <div className="cx-twins">
+        {twins.map((twin) => (
+          <div key={twin.name}>
+            <HeartTwin status={twin.band.status} heartRate={twin.side.params.hr} label={`3D heart for the ${twin.name.toLowerCase()} readings, ten-year estimate ${percent(twin.side.risk)}`} />
+            <div className="cx-twin-caption">
+              <span>
+                {twin.name} <b>{percent(twin.side.risk)}</b>
+              </span>
+              <StatusTag status={twin.band.status} label={twin.band.label} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="hud-label hud-note">3D twin heart / Colour shows the band of the ten-year estimate / Beats at the resting heart rate / Not an image of the patient's heart</p>
 
       <div className="cx-risk">
         <div className="cx-risk-row">

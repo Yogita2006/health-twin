@@ -315,3 +315,33 @@
 .cx-grid + .hud-note {
   margin-top: 14px;
 }
+
+/* 3D twin hearts in the simulation: baseline beside simulated */
+.cx-twins {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+.cx-heart {
+  flex: none;
+  height: 220px;
+  min-height: 0;
+  margin-top: 0;
+}
+.cx-twin-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--hud-muted);
+}
+.cx-twin-caption b {
+  margin-left: 6px;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  color: var(--hud-ink);
+}

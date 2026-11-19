@@ -35,7 +35,7 @@ export const assumptionsInput = z.object({
 });
 
 export const interventionInput = z.object({
-  kind: z.enum(["lifestyle", "medication", "combination", "referral"]),
+  kind: z.enum(["accepted", "lifestyle", "medication", "combination", "referral"]),
   med: z.enum(["bp", "lipid", "both"]),
 });
 

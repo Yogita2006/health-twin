@@ -50,7 +50,7 @@ export interface Suggestion {
 
 export type Review = "accepted" | "rejected";
 
-export type InterventionKind = "lifestyle" | "medication" | "combination" | "referral";
+export type InterventionKind = "accepted" | "lifestyle" | "medication" | "combination" | "referral";
 export type MedCategory = "bp" | "lipid" | "both";
 
 export interface Intervention {
@@ -115,6 +115,7 @@ export const GROUP_LABEL: Record<SuggestionGroup, string> = {
 };
 
 export const KIND_LABEL: Record<InterventionKind, string> = {
+  accepted: "The suggestions I accepted",
   lifestyle: "Lifestyle modification",
   medication: "Medicine category chosen by the doctor",
   combination: "Lifestyle and medicine together",
