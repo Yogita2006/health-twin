@@ -4,6 +4,10 @@ import { METRICS, Metric, Reading, TwinState } from "./types";
 // folded into that day's document as it arrives, so a month of history is
 // 30 documents to read instead of thousands of readings.
 
+// The most readings one patient may send in a day. It protects the free
+// database quota from a streaming session that is left running.
+export const DAILY_READING_LIMIT = 600;
+
 // Days are cut at midnight in this time zone.
 export const SUMMARY_TIME_ZONE = "Asia/Kolkata";
 

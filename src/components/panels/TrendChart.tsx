@@ -73,7 +73,7 @@ export default function TrendChart({ readings, state }: { readings: Reading[]; s
       <p className="hud-label hud-note">
         {info.label} ({info.unit}) / One step per reading /{" "}
         {range
-          ? `Band = ${range.basis === "personal" ? "your usual range" : "default reference range"}, ${range.low.toFixed(info.decimals)} to ${range.high.toFixed(info.decimals)}`
+          ? `Band = ${range.basis === "personal" ? "usual range" : "default reference range"}, ${range.low.toFixed(info.decimals)} to ${range.high.toFixed(info.decimals)}`
           : "Band appears once the twin has data"}
       </p>
     </div>

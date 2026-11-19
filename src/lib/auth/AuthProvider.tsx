@@ -1,7 +1,7 @@
 "use client";
 
-// Keeps track of who is signed in and what their role is,
-// and makes that available to every page through useAuth().
+// Keeps track of who is signed in, what their role is and what they are
+// called, and makes that available to every page through useAuth().
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -12,13 +12,14 @@ export type Role = "patient" | "doctor" | "admin";
 type AuthState = {
   user: User | null;
   role: Role | null;
+  name: string | null;
   loading: boolean;
 };
 
-const AuthContext = createContext<AuthState>({ user: null, role: null, loading: true });
+const AuthContext = createContext<AuthState>({ user: null, role: null, name: null, loading: true });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({ user: null, role: null, loading: true });
+  const [state, setState] = useState<AuthState>({ user: null, role: null, name: null, loading: true });
 
   useEffect(() => {
     let stopProfile = () => {};
@@ -28,19 +29,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       stopProfile();
 
       if (!user) {
-        setState({ user: null, role: null, loading: false });
+        setState({ user: null, role: null, name: null, loading: false });
         return;
       }
 
       // Listen to this account's role document. Because it is a live
-      // listener, a role change made by an admin applies immediately.
+      // listener, a role or name change applies immediately.
       stopProfile = onSnapshot(
         doc(db, "users", user.uid),
         (snap) => {
-          const role = snap.exists() ? (snap.data().role as Role) : null;
-          setState({ user, role, loading: false });
+          const data = snap.exists() ? snap.data() : null;
+          const role = data ? (data.role as Role) : null;
+          const name = data ? ((data.displayName as string | undefined) ?? null) : null;
+          setState({ user, role, name, loading: false });
         },
-        () => setState({ user, role: null, loading: false })
+        () => setState({ user, role: null, name: null, loading: false })
       );
     });
 

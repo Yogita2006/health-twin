@@ -8,6 +8,7 @@ import { StatusTag } from "@/components/hud/Hud";
 import ImagingPanel from "@/components/panels/ImagingPanel";
 import OrganView from "@/components/twin3d/OrganView";
 import { REGION_METRICS } from "@/lib/engine/config";
+import { HistoryRecord, TYPE_LABEL, statusWord } from "@/lib/history";
 import { METRIC_INFO, Region, Status, TwinState } from "@/lib/engine/types";
 
 export const REGION_LABEL: Record<Region, string> = {
@@ -27,7 +28,16 @@ const NO_DATA_NOTE: Partial<Record<Region, string>> = {
 
 type Picture = "model" | "section";
 
-export default function RegionPanel({ state, selected, onSelect }: { state: TwinState | null; selected: Region; onSelect: (region: Region) => void }) {
+interface Props {
+  state: TwinState | null;
+  selected: Region;
+  onSelect: (region: Region) => void;
+  history?: HistoryRecord[]; // the patient's medical history, if it has been loaded
+}
+
+export default function RegionPanel({ state, selected, onSelect, history }: Props) {
+  // Medical history records the patient linked to this part of the body.
+  const related = (history ?? []).filter((record) => record.region === selected);
   const [picture, setPicture] = useState<Picture>("model");
   const status: Status = state ? state.regions[selected] : "no_data";
   const metrics = REGION_METRICS[selected];
@@ -80,11 +90,25 @@ export default function RegionPanel({ state, selected, onSelect }: { state: Twin
                 {metric.value.toFixed(info.decimals)} <span className="hud-unit">{info.unit}</span>
               </p>
               <span className="hud-label">
-                {metric.basis === "personal" ? "Your usual range" : "Reference range"}: {metric.low.toFixed(info.decimals)} to {metric.high.toFixed(info.decimals)} {info.unit}
+                {metric.basis === "personal" ? "Usual range" : "Reference range"}: {metric.low.toFixed(info.decimals)} to {metric.high.toFixed(info.decimals)} {info.unit}
               </span>
             </div>
           );
         })}
+
+      {related.length > 0 && (
+        <div className="hud-note">
+          <span className="hud-label">Medical history for this area</span>
+          {related.slice(0, 4).map((record) => (
+            <div key={record.id} className="hud-row" style={{ textTransform: "none" }}>
+              <span>{record.title}</span>
+              <span className="hud-label">
+                {TYPE_LABEL[record.type]} / {statusWord(record)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

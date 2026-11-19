@@ -45,6 +45,7 @@ interface Options {
   container: HTMLElement;
   modelUrl: string;
   onSelect: (region: Region) => void;
+  onLoaded?: () => void; // called once the body model has arrived
 }
 
 // The see-through surface: faint when you look straight at it, bright at the
@@ -71,7 +72,7 @@ export const SURFACE_FRAGMENT = `
   }
 `;
 
-export function createTwinScene({ container, modelUrl, onSelect }: Options): TwinScene | null {
+export function createTwinScene({ container, modelUrl, onSelect, onLoaded }: Options): TwinScene | null {
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -250,6 +251,8 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
         }
       }
       scene.add(gltf.scene);
+      update(latestState, latestSelected); // colour the parts that have just arrived
+      onLoaded?.();
     },
     undefined,
     (error) => console.error("Could not load the body model:", error)
@@ -280,8 +283,12 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
   // ---------- Live values ----------
   let heartRate = 0;
   let breathRate = 0;
+  let latestState: TwinState | null = null;
+  let latestSelected: Region = "heart";
 
-  const update = (state: TwinState | null, selected: Region) => {
+  function update(state: TwinState | null, selected: Region) {
+    latestState = state;
+    latestSelected = selected;
     heartRate = state ? state.metrics.hr.value : 0;
     breathRate = state ? state.metrics.rr.value : 0;
 
@@ -314,7 +321,7 @@ export function createTwinScene({ container, modelUrl, onSelect }: Options): Twi
     surfaceMaterial.uniforms.uBoost.value = selected === "body" ? 1.9 : 1;
     wireMaterial.color.set(shell);
     wireMaterial.opacity = selected === "body" ? 0.12 : 0.028;
-  };
+  }
 
   // ---------- Clicking an organ ----------
   const PICK_ORDER: Record<Region, number> = { heart: 5, lungs: 4, brain: 3, skeleton: 2, body: 1 };

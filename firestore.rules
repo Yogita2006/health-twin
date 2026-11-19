@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Healthcare Digital Twin: security rules, version 3 (adds daily summaries).
+// Healthcare Digital Twin: security rules, version 5 (adds medical history).
 // Roles live in users/{uid}.role and are "patient", "doctor" or "admin".
 // These rules run on Google's servers and cannot be bypassed from the browser.
 
@@ -17,7 +17,7 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // The patient themselves, an assigned doctor, or an admin.
+    // The patient themselves, a doctor the patient shares with, or an admin.
     function canReadPatient(patientId) {
       return signedIn()
         && (request.auth.uid == patientId
@@ -28,16 +28,12 @@ service cloud.firestore {
     // Account roles.
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      // A new account can only give itself the "patient" role.
+      // A new account can give itself the "patient" or "doctor" role, never "admin".
       allow create: if signedIn()
         && request.auth.uid == uid
-        && request.resource.data.role == 'patient';
-      // A user may edit their own details but never their own role.
-      allow update: if isAdmin()
-        || (signedIn()
-            && request.auth.uid == uid
-            && request.resource.data.role == resource.data.role);
-      allow delete: if isAdmin();
+        && request.resource.data.role in ['patient', 'doctor'];
+      // Names and roles are changed only by the server (the profile and admin APIs).
+      allow update, delete: if false;
     }
 
     // Patient records. The document ID is the patient's account UID.
@@ -50,12 +46,9 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.auth.uid == patientId
         && request.resource.data.assignedDoctorIds.size() == 0;
-      // A patient may edit their profile but not who their doctors are.
-      allow update: if isAdmin()
-        || (signedIn()
-            && request.auth.uid == patientId
-            && request.resource.data.assignedDoctorIds == resource.data.assignedDoctorIds);
-      allow delete: if isAdmin();
+      // Profiles and the list of doctors are changed only by the server
+      // (the profile and care-team APIs), which validates every change.
+      allow update, delete: if false;
 
       // Health data: readings, twin state, baseline, alerts and daily summaries.
       // Readable by the patient, assigned doctors and admins.
@@ -80,8 +73,13 @@ service cloud.firestore {
         allow read: if canReadPatient(patientId);
         allow write: if false;
       }
+      // Medical history: conditions, medications, surgeries, allergies, events.
+      match /history/{recordId} {
+        allow read: if canReadPatient(patientId);
+        allow write: if false;
+      }
     }
 
-    // Everything else is denied until later weeks add it.
+    // Everything else is denied.
   }
 }

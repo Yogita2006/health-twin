@@ -8,7 +8,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { callerFromRequest } from "@/lib/api/auth";
 import { readingInput } from "@/lib/validation/reading";
 import { computeBaseline } from "@/lib/engine/baseline";
-import { addToDaily, dayKey, DailySummary } from "@/lib/engine/daily";
+import { addToDaily, DAILY_READING_LIMIT, dayKey, DailySummary } from "@/lib/engine/daily";
 import { updateTwin } from "@/lib/engine/twin";
 import { BASELINE_MIN_READINGS, BASELINE_WINDOW } from "@/lib/engine/config";
 import { Baseline, Reading, TwinState } from "@/lib/engine/types";
@@ -60,6 +60,9 @@ export async function POST(request: Request) {
       const baseline = baselineSnap.exists ? (baselineSnap.data() as Baseline) : null;
       const daily = dailySnap.exists ? (dailySnap.data() as DailySummary) : null;
 
+      // Daily limit reached: save nothing.
+      if (daily && daily.count >= DAILY_READING_LIMIT) return null;
+
       const update = updateTwin(previous, reading, baseline);
 
       tx.set(readingRef, reading);
@@ -70,6 +73,10 @@ export async function POST(request: Request) {
       }
       return update;
     });
+
+    if (!result) {
+      return fail(429, `Daily limit reached: ${DAILY_READING_LIMIT} readings per day. It resets at midnight.`);
+    }
 
     // 5. Establish or refresh the personal baseline at 20, 30, 40, 50 resting
     //    readings, and every 50 after that.
