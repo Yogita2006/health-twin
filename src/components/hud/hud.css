@@ -669,6 +669,16 @@
 .hud-alert:first-child {
   margin-top: 0;
 }
+/* An alert whose measurement has since returned to range: shown quietly. */
+.hud-alert-past {
+  border-color: var(--hud-line);
+  border-left-color: var(--hud-line-strong);
+  background: transparent;
+  color: var(--hud-muted);
+}
+.hud-alert-now {
+  margin: 0 0 8px;
+}
 
 /* ---------- Overview ring and rows ---------- */
 .hud-overview {

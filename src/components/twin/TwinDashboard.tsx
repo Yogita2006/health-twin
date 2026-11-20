@@ -48,12 +48,15 @@ function gaugePosition(metric: MetricState): number {
 const outline = (status: Status) => (status === "watch" ? " hud-outline-watch" : status === "outside" ? " hud-outline-outside" : "");
 
 export default function TwinDashboard({ patientId, state }: { patientId: string; state: TwinState }) {
-  const alerts = useAlerts(patientId);
+  const alerts = useAlerts(patientId, 3);
   const readings = useRecentReadings(patientId);
   const { records: history } = useMedicalHistory(patientId);
   const [region, setRegion] = useState<Region>("heart");
 
   const withinCount = METRICS.filter((m) => state.metrics[m].status === "within").length;
+  // Alerts are a record of past events. Only a measurement that is outside its
+  // range right now counts as an active alert.
+  const outsideNow = METRICS.filter((m) => state.metrics[m].status === "outside");
   const pressure: Status = worse(state.metrics.sys.status, state.metrics.dia.status);
   const restingSoFar = Math.min(state.restingCount, BASELINE_MIN_READINGS);
 
@@ -168,17 +171,27 @@ export default function TwinDashboard({ patientId, state }: { patientId: string;
           <RegionPanel state={state} selected={region} onSelect={setRegion} history={history} />
         </HudPanel>
 
-        <HudPanel index="06" title="Alerts" sub="Information only / Not a diagnosis" right={<span className="hud-label">{alerts.length} recent</span>}>
+        <HudPanel index="06" title="Alert history" sub="Past events / Information only / Not a diagnosis" right={<span className="hud-label">Latest {alerts.length}</span>}>
+          <p className={outsideNow.length === 0 ? "hud-success hud-alert-now" : "hud-notice hud-alert-now"}>
+            {outsideNow.length === 0
+              ? "Right now: no measurement is outside its usual range."
+              : `Right now: ${outsideNow.map((m) => SHORT_LABEL[m]).join(", ")} outside the usual range.`}
+          </p>
           {alerts.length === 0 ? (
-            <p className="hud-text hud-plain">No alerts.</p>
+            <p className="hud-text hud-plain">No alerts have been raised.</p>
           ) : (
-            alerts.map((alert) => (
-              <div key={alert.id} className="hud-alert">
-                <span className="hud-label">{new Date(alert.ts).toLocaleString()}</span>
-                <br />
-                {alert.message}
-              </div>
-            ))
+            alerts.map((alert) => {
+              const active = state.metrics[alert.metric].status === "outside";
+              return (
+                <div key={alert.id} className={active ? "hud-alert" : "hud-alert hud-alert-past"}>
+                  <span className="hud-label">
+                    {new Date(alert.ts).toLocaleString()} / {active ? "Still outside range" : "Past, back in range"}
+                  </span>
+                  <br />
+                  {alert.message}
+                </div>
+              );
+            })
           )}
         </HudPanel>
 
